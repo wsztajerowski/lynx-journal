@@ -27,15 +27,15 @@ public class JournalReadChannel {
     }
 
     public int validateHeaderAndGetSchemaVersion() throws IOException {
+        // v01 journal header format: [ int prefix, int schemaVersion ]
         if (fileChannel.size() < JOURNAL_HEADER_SIZE_IN_BYTES){
             throw new IOException("Corrupted journal file - header size is too small");
         }
-        var journalHeader = readFromFileChannel(JOURNAL_HEADER_SIZE_IN_BYTES, 0).asIntBuffer();
-        if(journalHeader.get(0) != JOURNAL_PREFIX) {
+        var journalHeader = readFromFileChannel(JOURNAL_HEADER_SIZE_IN_BYTES, 0);
+        if(journalHeader.getInt() != JOURNAL_PREFIX) {
             throw new IOException("Invalid journal header format");
         }
-        int journalSchemaVersion = journalHeader.get(1);
-        return journalSchemaVersion;
+        return journalHeader.getInt();
     }
 
     public void close() throws IOException {
@@ -49,18 +49,18 @@ public class JournalReadChannel {
     }
 
     private RecordHeader validateAndGetRecordHeader(Location location) throws IOException {
+        // v01 record header format: [ int prefix, int variableType, int variableSize ]
         var headerBuffer = readFromFileChannel(RecordHeader.RECORD_HEADER_SIZE_IN_BYTES, location.offset());
-        var header = headerBuffer.asIntBuffer();
-        if (header.get(0) != RecordHeader.RECORD_PREFIX) {
+        if (headerBuffer.getInt() != RecordHeader.RECORD_PREFIX) {
             throw new IOException("Invalid record header format");
         }
-        return new RecordHeader(header.get(1), header.get(2));
+        return new RecordHeader(headerBuffer.getInt(), headerBuffer.getInt());
     }
 
     private ByteBuffer readFromFileChannel(int numberOfBytesToRead, long location) throws IOException {
         var variableBuffer = ByteBuffer.allocate(numberOfBytesToRead);
         fileChannel.read(variableBuffer, location);
-        variableBuffer.flip();
+        variableBuffer.rewind();
         return variableBuffer;
     }
 }
