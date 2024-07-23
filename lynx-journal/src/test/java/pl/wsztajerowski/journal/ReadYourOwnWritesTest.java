@@ -112,6 +112,20 @@ class ReadYourOwnWritesTest {
     }
 
     @Test
+    void readOutsideOfJournal() {
+        // given
+        Location location = new Location(JOURNAL_HEADER_SIZE_IN_BYTES);
+
+        // when
+        Exception exception = Assertions.catchException(() -> sut.read(location));
+
+        // then
+        assertThat(exception)
+            .isInstanceOf(IOException.class)
+            .hasMessageContaining("Invalid record header format");
+    }
+
+    @Test
     void readYourSingleWrite() throws IOException {
         // given
         var content = "Hello World";
