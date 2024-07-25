@@ -1,6 +1,8 @@
 package pl.wsztajerowski.journal.records;
 
 import pl.wsztajerowski.journal.Location;
+import pl.wsztajerowski.journal.exceptions.InvalidRecordHeader;
+import pl.wsztajerowski.journal.exceptions.NotEnoughSpaceInBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -28,7 +30,7 @@ public class RecordReadChannel {
     public Record read(ByteBuffer destination, Location location) throws IOException {
         var recordHeader = validateAndGetRecordHeader(location);
         if (destination.remaining() < recordHeader.variableSize()){
-            throw new IOException("Provided buffer is too small");
+            throw new NotEnoughSpaceInBuffer(destination.remaining(), recordHeader.variableSize());
         }
         ByteBuffer localCopyOfDestination = destination
             .duplicate()
@@ -42,7 +44,7 @@ public class RecordReadChannel {
         recordHeaderBuffer.clear();
         var headerBuffer = readFromFileChannel(location.offset(), recordHeaderBuffer);
         if (headerBuffer.getInt() != RecordHeader.RECORD_PREFIX) {
-            throw new IOException("Invalid record header format");
+            throw new InvalidRecordHeader();
         }
         return new RecordHeader(headerBuffer.getInt());
     }
