@@ -1,5 +1,8 @@
 package pl.wsztajerowski.journal;
 
+import pl.wsztajerowski.journal.exceptions.InvalidJournalHeader;
+import pl.wsztajerowski.journal.exceptions.TooSmallJournalHeader;
+import pl.wsztajerowski.journal.exceptions.UnsupportedJournalVersion;
 import pl.wsztajerowski.journal.records.Record;
 import pl.wsztajerowski.journal.records.RecordReadChannel;
 import pl.wsztajerowski.journal.records.RecordWriteChannel;
@@ -42,7 +45,7 @@ public class Journal {
 
         long journalFileSize = readerChannel.size();
         if (journalFileSize > 0 && journalFileSize < journalHeaderLength()) {
-            throw new IOException("Corrupted journal file - header size is too small");
+            throw new TooSmallJournalHeader();
         }
 
         // v01 journal header format: [ int prefix, int schemaVersion ]
@@ -56,11 +59,11 @@ public class Journal {
             readerChannel.read(journalHeaderBuffer, 0);
             journalHeaderBuffer.rewind();
             if (journalHeaderBuffer.getInt() != JOURNAL_PREFIX) {
-                throw new IOException("Invalid journal header format");
+                throw new InvalidJournalHeader();
             }
             int schemaVersion = journalHeaderBuffer.getInt();
             if (!SUPPORTED_SCHEMA_VERSIONS.contains(schemaVersion)) {
-                throw new IOException("Unsupported schema version: %08x".formatted(schemaVersion));
+                throw new UnsupportedJournalVersion(schemaVersion);
             }
         }
         RecordWriteChannel writeChannel = RecordWriteChannel.open(writerChannel);
