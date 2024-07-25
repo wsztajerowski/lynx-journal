@@ -7,15 +7,14 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.HexFormat;
 
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
 import static org.assertj.core.api.Assertions.assertThat;
-import static pl.wsztajerowski.journal.HexTestUtils.toUpperCaseHexString;
+import static pl.wsztajerowski.journal.BytesTestUtils.toUpperCaseHexString;
+import static pl.wsztajerowski.journal.BytesTestUtils.toUtf8HexString;
 import static pl.wsztajerowski.journal.FilesTestUtils.wrapInByteBuffer;
 import static pl.wsztajerowski.journal.records.RecordTestUtils.recordHeaderPrefixInHexString;
 
@@ -50,7 +49,7 @@ class RecordWriteChannelTest {
             .containsSequence(
                 recordHeaderPrefixInHexString(),
                 toUpperCaseHexString(content.length()),
-                HexFormat.of().formatHex(content.getBytes(StandardCharsets.UTF_8)));
+                toUtf8HexString(content));
     }
 
 }

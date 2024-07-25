@@ -3,14 +3,16 @@ package pl.wsztajerowski.journal;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.exceptions.InvalidJournalHeader;
+import pl.wsztajerowski.journal.exceptions.UnsupportedJournalVersion;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
 import static org.assertj.core.api.Assertions.assertThat;
+import static pl.wsztajerowski.journal.JournalTestDataProvider.journalWithInvalidPrefix;
 import static pl.wsztajerowski.journal.JournalTestUtils.journalCurrentSchemaVersionInHexString;
 import static pl.wsztajerowski.journal.JournalTestUtils.journalHeaderPrefixInHexString;
 
@@ -40,29 +42,32 @@ class OpenJournalTest {
             .containsSequence(journalHeaderPrefixInHexString(), journalCurrentSchemaVersionInHexString());
     }
 
-//    @Test
-//    void openedJournalHasCorrectSchemaVersion() {
-//        // when
-//        int schemaVersion = sut.getJournalSchemaVersion();
-//
-//        // then
-//        assertThat(toUpperCaseHexString(schemaVersion))
-//            .hasSize(8)
-//            .startsWith("0FF1CE");
-//    }
+    @Test
+    void openJournalWithUnsupportedSchemaVersionThrowsException() throws IOException {
+        // given
+        Path journalFilePath = JournalTestDataProvider.journalWithUnsupportedSchemaVersion()
+            .journalFilePath();
+
+        // when
+        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath));
+
+        // then
+        assertThat(exception)
+            .isInstanceOf(UnsupportedJournalVersion.class);
+    }
 
     @Test
     void openCorruptedJournalFails() throws IOException {
         // given
-        Path journalPath = createTempFile("journal", ".dat");
-        Files.writeString(journalPath, "Some text in bytes");
+        Path journalFilePath = journalWithInvalidPrefix()
+            .journalFilePath();
 
         // when
-        Exception exception = Assertions.catchException(() -> Journal.open(journalPath));
+        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath));
 
         // then
         assertThat(exception)
-            .isInstanceOf(IOException.class)
+            .isInstanceOf(InvalidJournalHeader.class)
             .hasMessageContaining("Invalid journal header format");
     }
 

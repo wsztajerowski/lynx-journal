@@ -9,7 +9,7 @@ public class JournalTestUtils {
     }
 
     public static CharSequence journalCurrentSchemaVersionInHexString() {
-        return HexTestUtils.toUpperCaseHexString(Journal.SCHEMA_VERSION_V1);
+        return BytesTestUtils.toUpperCaseHexString(Journal.SCHEMA_VERSION_V1);
     }
 
 }
