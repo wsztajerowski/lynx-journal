@@ -10,6 +10,7 @@ import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
 import static org.assertj.core.api.Assertions.assertThat;
+import static pl.wsztajerowski.journal.FilesTestUtils.*;
 
 class ReadYourOwnWritesTest {
     private Journal sut;
@@ -29,7 +30,7 @@ class ReadYourOwnWritesTest {
     void readYourSingleWrite() throws IOException {
         // given
         var content = "Hello World";
-        var buffer = FilesTestUtils.wrapInByteBuffer(content);
+        var buffer = wrapInByteBuffer(content);
 
         // when
         var location = sut.write(buffer);
@@ -37,7 +38,7 @@ class ReadYourOwnWritesTest {
         var readContentBuffer = sut.read(ByteBuffer.allocate(64), location);
 
         // then
-        var readContent = FilesTestUtils.readAsUtf8(readContentBuffer);
+        var readContent = readAsUtf8(readContentBuffer);
         assertThat(readContent)
             .isEqualTo(content);
     }
@@ -50,13 +51,13 @@ class ReadYourOwnWritesTest {
         var thirdVariableContent = "project!";
 
         // when
-        var firstVariableLocation = sut.write(FilesTestUtils.wrapInByteBuffer(firstVariableContent));
-        var secondVariableLocation = sut.write(FilesTestUtils.wrapInByteBuffer(secondVariableContent));
-        var thirdVariableLocation = sut.write(FilesTestUtils.wrapInByteBuffer(thirdVariableContent));
+        var firstVariableLocation = sut.write(wrapInByteBuffer(firstVariableContent));
+        var secondVariableLocation = sut.write(wrapInByteBuffer(secondVariableContent));
+        var thirdVariableLocation = sut.write(wrapInByteBuffer(thirdVariableContent));
         // and
-        var secondReadContent = FilesTestUtils.readAsUtf8(sut.readRecord(ByteBuffer.allocate(64), secondVariableLocation).buffer());
-        var firstReadContent = FilesTestUtils.readAsUtf8(sut.readRecord(ByteBuffer.allocate(64), firstVariableLocation).buffer());
-        var thirdReadContent = FilesTestUtils.readAsUtf8(sut.readRecord(ByteBuffer.allocate(64), thirdVariableLocation).buffer());
+        var secondReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), secondVariableLocation));
+        var firstReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), firstVariableLocation));
+        var thirdReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), thirdVariableLocation));
 
         // then
         assertThat(String.join("", firstReadContent, secondReadContent, thirdReadContent))
