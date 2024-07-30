@@ -40,7 +40,7 @@ public class RecordReadChannel {
     }
 
     private RecordHeader validateAndGetRecordHeader(Location location) throws IOException {
-        // v01 record header format: [ int prefix, int variableType, int variableSize ]
+        // v01 record header format: [ int prefix, int variableSize ]
         recordHeaderBuffer.clear();
         var headerBuffer = readFromFileChannel(location.offset(), recordHeaderBuffer);
         if (headerBuffer.getInt() != RecordHeader.RECORD_PREFIX) {
