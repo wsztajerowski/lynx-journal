@@ -2,11 +2,15 @@ package pl.wsztajerowski.journal;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import pl.wsztajerowski.journal.exceptions.InvalidJournalHeader;
+import pl.wsztajerowski.journal.exceptions.TooSmallJournalHeader;
 import pl.wsztajerowski.journal.exceptions.UnsupportedJournalVersion;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
@@ -16,6 +20,7 @@ import static pl.wsztajerowski.journal.JournalTestDataProvider.journalWithInvali
 import static pl.wsztajerowski.journal.JournalTestUtils.journalCurrentSchemaVersionInHexString;
 import static pl.wsztajerowski.journal.JournalTestUtils.journalHeaderPrefixInHexString;
 
+@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class OpenJournalTest {
     private Journal sut;
 
@@ -27,7 +32,7 @@ class OpenJournalTest {
     }
 
     @Test
-    void openedJournalHasOnlyValidHeader() throws IOException {
+    void opened_journal_has_only_valid_header() throws IOException {
         // given
         Path journalPath = createTempFile("journal", ".dat");
 
@@ -43,7 +48,7 @@ class OpenJournalTest {
     }
 
     @Test
-    void openJournalWithUnsupportedSchemaVersionThrowsException() throws IOException {
+    void open_journal_with_unsupported_schema_version_throws_exception() throws IOException {
         // given
         Path journalFilePath = JournalTestDataProvider.journalWithUnsupportedSchemaVersion()
             .journalFilePath();
@@ -57,7 +62,7 @@ class OpenJournalTest {
     }
 
     @Test
-    void openCorruptedJournalFails() throws IOException {
+    void open_journal_with_invalid_prefix_fails() throws IOException {
         // given
         Path journalFilePath = journalWithInvalidPrefix()
             .journalFilePath();
@@ -69,6 +74,20 @@ class OpenJournalTest {
         assertThat(exception)
             .isInstanceOf(InvalidJournalHeader.class)
             .hasMessageContaining("Invalid journal header format");
+    }
+
+    @Test
+    void open_journal_with_without_full_header_fails() throws IOException {
+        // given
+        Path journalPath = createTempFile("journal", ".dat");
+        Files.write(journalPath, BytesTestUtils.toByteArray(1));
+
+        // when
+        Exception exception = Assertions.catchException(() -> Journal.open(journalPath));
+
+        // then
+        assertThat(exception)
+            .isInstanceOf(TooSmallJournalHeader.class);
     }
 
 }
