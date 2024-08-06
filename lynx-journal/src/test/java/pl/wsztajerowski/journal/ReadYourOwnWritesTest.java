@@ -18,7 +18,7 @@ class ReadYourOwnWritesTest {
     @BeforeEach
     void setUp() throws IOException {
         Path dataFilePath = createTempFile("journal", ".dat");
-        sut = Journal.open(dataFilePath);
+        sut = Journal.open(dataFilePath, false);
     }
 
     @AfterEach
@@ -27,7 +27,7 @@ class ReadYourOwnWritesTest {
     }
 
     @Test
-    void readYourSingleWrite() throws IOException {
+    void readYourSingleWrite() {
         // given
         var content = "Hello World";
         var buffer = wrapInByteBuffer(content);
@@ -44,7 +44,7 @@ class ReadYourOwnWritesTest {
     }
 
     @Test
-    void readYourMultipleWrites() throws IOException {
+    void readYourMultipleWrites() {
         // given
         var firstVariableContent = "My";
         var secondVariableContent = " fantastic ";

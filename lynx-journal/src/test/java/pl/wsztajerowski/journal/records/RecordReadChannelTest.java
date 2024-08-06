@@ -9,13 +9,10 @@ import pl.wsztajerowski.journal.exceptions.NotEnoughSpaceInBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
 import static java.nio.file.Files.createTempFile;
-import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.READ;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchException;
 import static pl.wsztajerowski.journal.JournalTestDataProvider.validJournal;
@@ -30,8 +27,7 @@ class RecordReadChannelTest {
     @BeforeEach
     void setUp() throws IOException {
         dataFilePath = createTempFile("journal", ".dat");
-        FileChannel readerChannel = FileChannel.open(dataFilePath, CREATE, READ);
-        sut = RecordReadChannel.open(readerChannel);
+        sut = RecordReadChannel.open(dataFilePath);
     }
 
     @AfterEach
