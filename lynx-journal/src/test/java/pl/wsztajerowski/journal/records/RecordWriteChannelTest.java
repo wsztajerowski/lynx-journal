@@ -6,9 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
@@ -25,8 +23,7 @@ class RecordWriteChannelTest {
     @BeforeEach
     void setUp() throws IOException {
         dataFilePath = createTempFile("journal", ".dat");
-        FileChannel writerChannel = FileChannel.open(dataFilePath, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-        sut = RecordWriteChannel.open(writerChannel);
+        sut = RecordWriteChannel.open(dataFilePath);
     }
 
     @AfterEach

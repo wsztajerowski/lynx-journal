@@ -37,7 +37,7 @@ class OpenJournalTest {
         Path journalPath = createTempFile("journal", ".dat");
 
         // when
-        sut = Journal.open(journalPath);
+        sut = Journal.open(journalPath, false);
 
         // then
         byte[] bytes = readAllBytes(journalPath);
@@ -54,7 +54,7 @@ class OpenJournalTest {
             .journalFilePath();
 
         // when
-        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath));
+        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath, false));
 
         // then
         assertThat(exception)
@@ -68,12 +68,12 @@ class OpenJournalTest {
             .journalFilePath();
 
         // when
-        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath));
+        Exception exception = Assertions.catchException(() -> Journal.open(journalFilePath, false));
 
         // then
         assertThat(exception)
             .isInstanceOf(InvalidJournalHeader.class)
-            .hasMessageContaining("Invalid journal header format");
+            .hasMessageContaining("Invalid journal header prefix");
     }
 
     @Test
@@ -83,7 +83,7 @@ class OpenJournalTest {
         Files.write(journalPath, BytesTestUtils.toByteArray(1));
 
         // when
-        Exception exception = Assertions.catchException(() -> Journal.open(journalPath));
+        Exception exception = Assertions.catchException(() -> Journal.open(journalPath, false));
 
         // then
         assertThat(exception)
