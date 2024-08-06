@@ -16,8 +16,8 @@ public class FilesTestUtils {
     }
 
     public static String readAsUtf8(ByteBuffer buffer) {
-        byte[] bytes = new byte[buffer.limit()];
-        buffer.get(bytes);
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes, buffer.position(), buffer.remaining());
         return new String(bytes, UTF_8);
     }
 
