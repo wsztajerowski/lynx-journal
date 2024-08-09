@@ -64,9 +64,9 @@ public class RecordWriteChannel {
         }
     }
 
-    private void prepareRecordHeaderBufferToWrite(int variableSize, long checksum) {
+    private void prepareRecordHeaderBufferToWrite(int variableSize, int checksum) {
         recordHeaderBuffer.putInt(4, variableSize);
-        recordHeaderBuffer.putLong(8, checksum);
+        recordHeaderBuffer.putInt(8, checksum);
         recordHeaderBuffer.rewind();
     }
 }

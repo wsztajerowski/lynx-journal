@@ -9,21 +9,21 @@ public class ChecksumCalculator {
         return new CRC32C();
     }
 
-    public static long computeChecksum(ByteBuffer buffer) {
+    public static int computeChecksum(ByteBuffer buffer) {
         Checksum checksum = newChecksum();
         checksum.update(buffer.duplicate());
-        return checksum.getValue();
+        return Long.valueOf(checksum.getValue()).intValue();
     }
 
-    public static long computeChecksum(int variable) {
+    public static int computeChecksum(int variable) {
         Checksum checksum = newChecksum();
         checksum.update(variable);
-        return checksum.getValue();
+        return Long.valueOf(checksum.getValue()).intValue();
     }
 
-    public static long computeChecksum(String variable) {
+    public static int computeChecksum(String variable) {
         Checksum checksum = newChecksum();
         checksum.update(variable.getBytes());
-        return checksum.getValue();
+        return Long.valueOf(checksum.getValue()).intValue();
     }
 }
