@@ -1,10 +1,7 @@
 package pl.wsztajerowski.journal.records;
 
 import pl.wsztajerowski.journal.Location;
-import pl.wsztajerowski.journal.exceptions.InvalidRecordChecksum;
-import pl.wsztajerowski.journal.exceptions.InvalidRecordHeader;
-import pl.wsztajerowski.journal.exceptions.JournalRuntimeIOException;
-import pl.wsztajerowski.journal.exceptions.NotEnoughSpaceInBuffer;
+import pl.wsztajerowski.journal.JournalRuntimeIOException;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -39,7 +36,7 @@ public class RecordReadChannel {
     public Record read(ByteBuffer destination, Location location){
         var recordHeader = validateAndGetRecordHeader(location);
         if (destination.remaining() < recordHeader.variableSize()){
-            throw new NotEnoughSpaceInBuffer(destination.remaining(), recordHeader.variableSize());
+            throw new NotEnoughSpaceInBufferException(destination.remaining(), recordHeader.variableSize());
         }
         ByteBuffer localCopyOfDestination = destination
             .duplicate()
@@ -47,7 +44,7 @@ public class RecordReadChannel {
         var variableBuffer = readFromFileChannel(localCopyOfDestination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
         long calculatedChecksum = computeChecksum(variableBuffer);
         if (calculatedChecksum != recordHeader.checksum()){
-            throw new InvalidRecordChecksum(calculatedChecksum, recordHeader.checksum());
+            throw new InvalidRecordChecksumException(calculatedChecksum, recordHeader.checksum());
         }
         return new Record(recordHeader, location, destination.limit(localCopyOfDestination.limit()));
     }
@@ -58,7 +55,7 @@ public class RecordReadChannel {
         int prefix = headerBuffer.getInt();
         int variableSize = headerBuffer.getInt();
         if (prefix != RECORD_PREFIX || variableSize < 1 ) {
-            throw new InvalidRecordHeader(prefix, variableSize);
+            throw new InvalidRecordHeaderException(prefix, variableSize);
         }
         return new RecordHeader(variableSize, headerBuffer.getLong());
     }

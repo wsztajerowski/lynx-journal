@@ -1,4 +1,4 @@
-package pl.wsztajerowski.journal.exceptions;
+package pl.wsztajerowski.journal;
 
 import java.io.IOException;
 

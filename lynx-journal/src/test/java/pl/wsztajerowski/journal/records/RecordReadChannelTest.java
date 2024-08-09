@@ -4,9 +4,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import pl.wsztajerowski.journal.Location;
-import pl.wsztajerowski.journal.exceptions.InvalidRecordHeader;
-import pl.wsztajerowski.journal.exceptions.JournalRuntimeIOException;
-import pl.wsztajerowski.journal.exceptions.NotEnoughSpaceInBuffer;
+import pl.wsztajerowski.journal.JournalRuntimeIOException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -49,7 +47,7 @@ class RecordReadChannelTest {
 
         // then
         assertThat(exception)
-            .isInstanceOf(InvalidRecordHeader.class)
+            .isInstanceOf(InvalidRecordHeaderException.class)
             .hasMessageContaining("Invalid record header format");
     }
 
@@ -88,7 +86,7 @@ class RecordReadChannelTest {
 
         // then
         assertThat(exception)
-            .isInstanceOf(NotEnoughSpaceInBuffer.class);
+            .isInstanceOf(NotEnoughSpaceInBufferException.class);
     }
 
     static Stream<ByteBuffer> validReadBuffersSource(){
