@@ -62,7 +62,7 @@ public class RecordReadChannel {
         if (prefix != RECORD_PREFIX) {
             throw invalidRecordHeaderPrefix(prefix);
         }
-        return createAndValidateHeader(headerBuffer.getInt(), headerBuffer.getLong());
+        return createAndValidateHeader(headerBuffer.getInt(), headerBuffer.getInt());
     }
 
     private ByteBuffer readFromFileChannel(ByteBuffer buffer, long offset, int expectedSize) {
