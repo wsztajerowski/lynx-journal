@@ -80,7 +80,7 @@ class OpenJournalTest {
     void open_journal_with_without_full_header_fails() throws IOException {
         // given
         Path journalPath = createTempFile("journal", ".dat");
-        Files.write(journalPath, BytesTestUtils.toByteArray(1));
+        Files.write(journalPath, BytesTestUtils.intToBytes(1));
 
         // when
         Exception exception = Assertions.catchException(() -> Journal.open(journalPath, false));

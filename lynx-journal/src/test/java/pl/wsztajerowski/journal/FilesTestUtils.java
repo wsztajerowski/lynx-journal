@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static pl.wsztajerowski.journal.BytesTestUtils.toByteArray;
+import static pl.wsztajerowski.journal.BytesTestUtils.intToBytes;
 
 public class FilesTestUtils {
     public static ByteBuffer wrapInByteBuffer(String content) {
@@ -17,7 +17,7 @@ public class FilesTestUtils {
 
     public static String readAsUtf8(ByteBuffer buffer) {
         byte[] bytes = new byte[buffer.remaining()];
-        buffer.get(bytes, buffer.position(), buffer.remaining());
+        buffer.get(bytes, 0, buffer.remaining());
         return new String(bytes, UTF_8);
     }
 
@@ -30,6 +30,6 @@ public class FilesTestUtils {
     }
 
     public static void appendToFile(Path filepath, int content) throws IOException {
-        Files.write(filepath, toByteArray(content), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+        Files.write(filepath, intToBytes(content), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
     }
 }

@@ -1,6 +1,7 @@
 package pl.wsztajerowski.journal.records;
 
 import pl.wsztajerowski.journal.Location;
+import pl.wsztajerowski.journal.exceptions.InvalidRecordChecksum;
 import pl.wsztajerowski.journal.exceptions.InvalidRecordHeader;
 import pl.wsztajerowski.journal.exceptions.JournalRuntimeIOException;
 import pl.wsztajerowski.journal.exceptions.NotEnoughSpaceInBuffer;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
+import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksum;
 import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
 import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
@@ -43,11 +45,14 @@ public class RecordReadChannel {
             .duplicate()
             .limit(destination.position() + recordHeader.variableSize());
         var variableBuffer = readFromFileChannel(localCopyOfDestination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
-        return new Record(recordHeader, location, variableBuffer);
+        long calculatedChecksum = computeChecksum(variableBuffer);
+        if (calculatedChecksum != recordHeader.checksum()){
+            throw new InvalidRecordChecksum(calculatedChecksum, recordHeader.checksum());
+        }
+        return new Record(recordHeader, location, destination.limit(localCopyOfDestination.limit()));
     }
 
     private RecordHeader validateAndGetRecordHeader(Location location) {
-        // v01 record header format: [ int prefix, int variableSize ]
         recordHeaderBuffer.clear();
         var headerBuffer = readFromFileChannel(recordHeaderBuffer, location.offset(), recordHeaderLength());
         int prefix = headerBuffer.getInt();
@@ -55,18 +60,19 @@ public class RecordReadChannel {
         if (prefix != RECORD_PREFIX || variableSize < 1 ) {
             throw new InvalidRecordHeader(prefix, variableSize);
         }
-        return new RecordHeader(variableSize);
+        return new RecordHeader(variableSize, headerBuffer.getLong());
     }
 
     private ByteBuffer readFromFileChannel(ByteBuffer buffer, long offset, int expectedSize) {
         try {
+            buffer.mark();
             int readBytes = fileChannel.read(buffer, offset);
             if (readBytes == -1) {
                 throw new JournalRuntimeIOException("Read from outside of channel", new EOFException());
             } else if (readBytes != expectedSize) {
                 throw new JournalRuntimeIOException("Number of read bytes from channel (%d) is different than expected (%d)".formatted(readBytes, expectedSize));
             }
-            return  buffer.flip();
+            return  buffer.reset();
         } catch (IOException e) {
             throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
         }

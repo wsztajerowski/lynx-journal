@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import static java.nio.ByteBuffer.allocate;
+import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksum;
 import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
 import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
@@ -38,7 +39,8 @@ public class RecordWriteChannel {
         try {
             var location = new Location(fileChannel.position());
             int variableSize = buffer.remaining();
-            prepareRecordHeaderBufferToWrite(variableSize);
+            var checksum = computeChecksum(buffer);
+            prepareRecordHeaderBufferToWrite(variableSize, checksum);
             int writtenHeaderBytes = fileChannel.write(recordHeaderBuffer);
             if(writtenHeaderBytes != recordHeaderLength()){
                 throw new JournalRuntimeIOException("Number of bytes written to channel (%d) is different than size of record's header (%d)".formatted(writtenHeaderBytes, recordHeaderLength()));
@@ -53,8 +55,9 @@ public class RecordWriteChannel {
         }
     }
 
-    private void prepareRecordHeaderBufferToWrite(int variableSize) {
+    private void prepareRecordHeaderBufferToWrite(int variableSize, long checksum) {
         recordHeaderBuffer.putInt(4, variableSize);
+        recordHeaderBuffer.putLong(8, checksum);
         recordHeaderBuffer.rewind();
     }
 }

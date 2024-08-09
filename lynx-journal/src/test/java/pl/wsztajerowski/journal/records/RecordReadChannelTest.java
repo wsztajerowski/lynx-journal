@@ -95,8 +95,8 @@ class RecordReadChannelTest {
         return Stream.of(
             ByteBuffer.allocate(64),
             ByteBuffer.allocate(64).limit(32),
-            ByteBuffer.allocate(64).position(32),
-            ByteBuffer.allocate(64).position(16).limit(48)
+            ByteBuffer.allocate(64).position(16),
+            ByteBuffer.allocate(64).position(16).limit(32)
         );
     }
 
@@ -114,7 +114,7 @@ class RecordReadChannelTest {
 
         // then
         assertThat(record.buffer().remaining())
-            .isEqualTo(outputBuffer.position() + record.recordHeader().variableSize());
+            .isEqualTo(record.recordHeader().variableSize());
         // and
         assertThat(readAsUtf8(record.buffer()))
             .contains("Test value");
