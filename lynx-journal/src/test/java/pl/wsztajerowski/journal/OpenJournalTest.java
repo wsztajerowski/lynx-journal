@@ -5,9 +5,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
-import pl.wsztajerowski.journal.exceptions.InvalidJournalHeader;
-import pl.wsztajerowski.journal.exceptions.TooSmallJournalHeader;
-import pl.wsztajerowski.journal.exceptions.UnsupportedJournalVersion;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -58,7 +55,7 @@ class OpenJournalTest {
 
         // then
         assertThat(exception)
-            .isInstanceOf(UnsupportedJournalVersion.class);
+            .isInstanceOf(UnsupportedJournalVersionException.class);
     }
 
     @Test
@@ -72,7 +69,7 @@ class OpenJournalTest {
 
         // then
         assertThat(exception)
-            .isInstanceOf(InvalidJournalHeader.class)
+            .isInstanceOf(InvalidJournalHeaderException.class)
             .hasMessageContaining("Invalid journal header prefix");
     }
 
@@ -87,7 +84,7 @@ class OpenJournalTest {
 
         // then
         assertThat(exception)
-            .isInstanceOf(TooSmallJournalHeader.class);
+            .isInstanceOf(TooSmallJournalHeaderException.class);
     }
 
 }

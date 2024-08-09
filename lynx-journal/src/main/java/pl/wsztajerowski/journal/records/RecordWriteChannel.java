@@ -1,7 +1,7 @@
 package pl.wsztajerowski.journal.records;
 
 import pl.wsztajerowski.journal.Location;
-import pl.wsztajerowski.journal.exceptions.JournalRuntimeIOException;
+import pl.wsztajerowski.journal.JournalRuntimeIOException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
