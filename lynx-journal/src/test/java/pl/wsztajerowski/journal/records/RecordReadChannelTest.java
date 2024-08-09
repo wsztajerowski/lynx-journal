@@ -48,7 +48,7 @@ class RecordReadChannelTest {
         // then
         assertThat(exception)
             .isInstanceOf(InvalidRecordHeaderException.class)
-            .hasMessageContaining("Invalid record header format");
+            .hasMessageContaining("Invalid record header prefix");
     }
 
     @Test
