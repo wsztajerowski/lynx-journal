@@ -30,7 +30,7 @@ class RecordReadChannelTest {
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         sut.close();
     }
 

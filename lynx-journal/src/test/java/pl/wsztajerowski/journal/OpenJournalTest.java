@@ -22,7 +22,7 @@ class OpenJournalTest {
     private Journal sut;
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         if (sut != null){
             sut.closeJournal();
         }

@@ -4,6 +4,7 @@ import pl.wsztajerowski.journal.Location;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -23,16 +24,24 @@ public class RecordWriteChannel {
         this.fileChannel = fileChannel;
     }
 
-    public static RecordWriteChannel open(Path journalFile) throws IOException {
-        var headerBuffer = allocate(recordHeaderLength())
-            .putInt(RECORD_PREFIX);
-        FileChannel writerChannel = FileChannel.open(journalFile, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-        writerChannel.position(writerChannel.size());
-        return new RecordWriteChannel(headerBuffer, writerChannel);
+    public static RecordWriteChannel open(Path journalFile) {
+        try {
+            var headerBuffer = allocate(recordHeaderLength())
+                .putInt(RECORD_PREFIX);
+            FileChannel writerChannel = FileChannel.open(journalFile, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+            writerChannel.position(writerChannel.size());
+            return new RecordWriteChannel(headerBuffer, writerChannel);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
-    public void close() throws IOException {
-        fileChannel.close();
+    public void close() {
+        try {
+            fileChannel.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public Location append(ByteBuffer buffer) {
