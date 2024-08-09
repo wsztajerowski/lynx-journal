@@ -46,6 +46,7 @@ class RecordWriteChannelTest {
             .containsSequence(
                 recordHeaderPrefixInHexString(),
                 toUpperCaseHexString(content.length()),
+                toUpperCaseHexString(ChecksumCalculator.computeChecksum(content)),
                 toUtf8HexString(content));
     }
 

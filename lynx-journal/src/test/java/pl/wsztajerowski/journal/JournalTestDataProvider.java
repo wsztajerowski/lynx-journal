@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static pl.wsztajerowski.journal.BytesTestUtils.toByteArray;
+import static pl.wsztajerowski.journal.BytesTestUtils.intToBytes;
 import static pl.wsztajerowski.journal.FilesTestUtils.appendToFile;
 
 public class JournalTestDataProvider {
@@ -24,8 +24,8 @@ public class JournalTestDataProvider {
     }
 
     public static JournalTestDataProvider validJournal(Path filePath) throws IOException {
-        appendToFile(filePath, toByteArray(Journal.JOURNAL_PREFIX));
-        appendToFile(filePath, toByteArray(Journal.SCHEMA_VERSION_V1));
+        appendToFile(filePath, intToBytes(Journal.JOURNAL_PREFIX));
+        appendToFile(filePath, intToBytes(Journal.SCHEMA_VERSION_V1));
         RecordTestDataProvider recordTestDataProvider = V1SchemaRecordTestDataProvider.recordTestDataProvider(filePath);
         return new JournalTestDataProvider(filePath, recordTestDataProvider);
     }
@@ -35,8 +35,8 @@ public class JournalTestDataProvider {
     }
 
     public static JournalTestDataProvider journalWithInvalidPrefix(Path filePath) throws IOException {
-        appendToFile(filePath, toByteArray(0xDEADC0DE));
-        appendToFile(filePath, toByteArray(Journal.SCHEMA_VERSION_V1));
+        appendToFile(filePath, intToBytes(0xDEADC0DE));
+        appendToFile(filePath, intToBytes(Journal.SCHEMA_VERSION_V1));
         RecordTestDataProvider recordTestDataProvider = V1SchemaRecordTestDataProvider.recordTestDataProvider(filePath);
         return new JournalTestDataProvider(filePath, recordTestDataProvider);
     }
@@ -46,8 +46,8 @@ public class JournalTestDataProvider {
     }
 
     public static JournalTestDataProvider journalWithUnsupportedSchemaVersion(Path filePath) throws IOException {
-        appendToFile(filePath, toByteArray(Journal.JOURNAL_PREFIX));
-        appendToFile(filePath, toByteArray(0x0FF1CE00));
+        appendToFile(filePath, intToBytes(Journal.JOURNAL_PREFIX));
+        appendToFile(filePath, intToBytes(0x0FF1CE00));
         RecordTestDataProvider recordTestDataProvider = V1SchemaRecordTestDataProvider.recordTestDataProvider(filePath);
         return new JournalTestDataProvider(filePath, recordTestDataProvider);
     }

@@ -7,6 +7,7 @@ import java.nio.file.Path;
 
 import static pl.wsztajerowski.journal.BytesTestUtils.*;
 import static pl.wsztajerowski.journal.FilesTestUtils.appendToFile;
+import static pl.wsztajerowski.journal.records.ChecksumCalculator.*;
 
 public class V1SchemaRecordTestDataProvider implements RecordTestDataProvider {
     private final Path journalFilePath;
@@ -24,7 +25,8 @@ public class V1SchemaRecordTestDataProvider implements RecordTestDataProvider {
         long offset = Files.size(journalFilePath);
         appendToFile(journalFilePath, RecordHeader.RECORD_PREFIX);
         byte[] bytes = variable.getBytes(StandardCharsets.UTF_8);
-        appendToFile(journalFilePath, toByteArray(bytes.length));
+        appendToFile(journalFilePath, intToBytes(bytes.length));
+        appendToFile(journalFilePath, longToBytes(computeChecksum(variable)));
         appendToFile(journalFilePath, bytes);
         return offset;
     }
@@ -33,7 +35,8 @@ public class V1SchemaRecordTestDataProvider implements RecordTestDataProvider {
     public long saveVariable(int variable) throws IOException {
         long offset = Files.size(journalFilePath);
         appendToFile(journalFilePath, RecordHeader.RECORD_PREFIX);
-        appendToFile(journalFilePath, toByteArray(Integer.BYTES));
+        appendToFile(journalFilePath, intToBytes(Integer.BYTES));
+        appendToFile(journalFilePath, longToBytes(computeChecksum(variable)));
         appendToFile(journalFilePath, variable);
         return offset;
     }
@@ -42,7 +45,7 @@ public class V1SchemaRecordTestDataProvider implements RecordTestDataProvider {
     public long saveVariableWithInvalidRecordHeader(String variable) throws IOException {
         long offset = Files.size(journalFilePath);
         appendToFile(journalFilePath, 0xDEADC0DE);
-        appendToFile(journalFilePath, toByteArray(Integer.BYTES));
+        appendToFile(journalFilePath, intToBytes(Integer.BYTES));
         appendToFile(journalFilePath, variable);
         return offset;
     }

@@ -47,7 +47,7 @@ class ReadYourOwnWritesTest {
     void readYourMultipleWrites() {
         // given
         var firstVariableContent = "My";
-        var secondVariableContent = " fantastic ";
+        var secondVariableContent = "fantastic";
         var thirdVariableContent = "project!";
 
         // when
@@ -60,7 +60,7 @@ class ReadYourOwnWritesTest {
         var thirdReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), thirdVariableLocation));
 
         // then
-        assertThat(String.join("", firstReadContent, secondReadContent, thirdReadContent))
+        assertThat(String.join(" ", firstReadContent, secondReadContent, thirdReadContent))
             .isEqualTo("My fantastic project!");
     }
 }
