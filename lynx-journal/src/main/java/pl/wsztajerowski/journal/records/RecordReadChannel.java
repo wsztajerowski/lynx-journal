@@ -12,9 +12,9 @@ import java.nio.file.Path;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
-import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksum;
-import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
-import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
+import static pl.wsztajerowski.journal.records.InvalidRecordHeaderException.invalidRecordHeaderPrefix;
+import static pl.wsztajerowski.journal.records.Record.createAndValidateRecord;
+import static pl.wsztajerowski.journal.records.RecordHeader.*;
 
 public class RecordReadChannel {
     private final ByteBuffer recordHeaderBuffer;
@@ -43,42 +43,40 @@ public class RecordReadChannel {
     }
 
     public Record read(ByteBuffer destination, Location location) {
-        var recordHeader = validateAndGetRecordHeader(location);
+        var recordHeader = readRecordHeader(location);
+        validateDestinationBufferSpace(destination, recordHeader);
+        var variableBuffer = readFromFileChannel(destination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
+        return createAndValidateRecord(recordHeader, location, variableBuffer);
+    }
+
+    private static void validateDestinationBufferSpace(ByteBuffer destination, RecordHeader recordHeader) {
         if (destination.remaining() < recordHeader.variableSize()) {
             throw new NotEnoughSpaceInBufferException(destination.remaining(), recordHeader.variableSize());
         }
-        ByteBuffer localCopyOfDestination = destination
-            .duplicate()
-            .limit(destination.position() + recordHeader.variableSize());
-        var variableBuffer = readFromFileChannel(localCopyOfDestination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
-        long calculatedChecksum = computeChecksum(variableBuffer);
-        if (calculatedChecksum != recordHeader.checksum()) {
-            throw new InvalidRecordChecksumException(calculatedChecksum, recordHeader.checksum());
-        }
-        return new Record(recordHeader, location, destination.limit(localCopyOfDestination.limit()));
     }
 
-    private RecordHeader validateAndGetRecordHeader(Location location) {
+    private RecordHeader readRecordHeader(Location location) {
         recordHeaderBuffer.clear();
         var headerBuffer = readFromFileChannel(recordHeaderBuffer, location.offset(), recordHeaderLength());
         int prefix = headerBuffer.getInt();
-        int variableSize = headerBuffer.getInt();
-        if (prefix != RECORD_PREFIX || variableSize < 1) {
-            throw new InvalidRecordHeaderException(prefix, variableSize);
+        if (prefix != RECORD_PREFIX) {
+            throw invalidRecordHeaderPrefix(prefix);
         }
-        return new RecordHeader(variableSize, headerBuffer.getLong());
+        return createAndValidateHeader(headerBuffer.getInt(), headerBuffer.getLong());
     }
 
     private ByteBuffer readFromFileChannel(ByteBuffer buffer, long offset, int expectedSize) {
         try {
-            buffer.mark();
-            int readBytes = fileChannel.read(buffer, offset);
+            var bufferCopy = buffer
+                .duplicate()
+                .limit(buffer.position() + expectedSize);
+            var readBytes = fileChannel.read(bufferCopy, offset);
             if (readBytes == -1) {
                 throw new JournalRuntimeIOException("Read from outside of channel", new EOFException());
             } else if (readBytes != expectedSize) {
                 throw new JournalRuntimeIOException("Number of read bytes from channel (%d) is different than expected (%d)".formatted(readBytes, expectedSize));
             }
-            return buffer.reset();
+            return buffer.limit(bufferCopy.limit());
         } catch (IOException e) {
             throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
         }
