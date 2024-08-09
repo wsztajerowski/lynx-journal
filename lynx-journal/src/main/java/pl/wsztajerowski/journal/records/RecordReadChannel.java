@@ -1,10 +1,11 @@
 package pl.wsztajerowski.journal.records;
 
-import pl.wsztajerowski.journal.Location;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
+import pl.wsztajerowski.journal.Location;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -24,18 +25,26 @@ public class RecordReadChannel {
         recordHeaderBuffer = ByteBuffer.allocate(recordHeaderLength());
     }
 
-    public static RecordReadChannel open(Path journalPath) throws IOException {
-        FileChannel readerChannel = FileChannel.open(journalPath, CREATE, READ);
-        return new RecordReadChannel(readerChannel);
+    public static RecordReadChannel open(Path journalPath) {
+        try {
+            FileChannel readerChannel = FileChannel.open(journalPath, CREATE, READ);
+            return new RecordReadChannel(readerChannel);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
-    public void close() throws IOException {
-        fileChannel.close();
+    public void close() {
+        try {
+            fileChannel.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
-    public Record read(ByteBuffer destination, Location location){
+    public Record read(ByteBuffer destination, Location location) {
         var recordHeader = validateAndGetRecordHeader(location);
-        if (destination.remaining() < recordHeader.variableSize()){
+        if (destination.remaining() < recordHeader.variableSize()) {
             throw new NotEnoughSpaceInBufferException(destination.remaining(), recordHeader.variableSize());
         }
         ByteBuffer localCopyOfDestination = destination
@@ -43,7 +52,7 @@ public class RecordReadChannel {
             .limit(destination.position() + recordHeader.variableSize());
         var variableBuffer = readFromFileChannel(localCopyOfDestination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
         long calculatedChecksum = computeChecksum(variableBuffer);
-        if (calculatedChecksum != recordHeader.checksum()){
+        if (calculatedChecksum != recordHeader.checksum()) {
             throw new InvalidRecordChecksumException(calculatedChecksum, recordHeader.checksum());
         }
         return new Record(recordHeader, location, destination.limit(localCopyOfDestination.limit()));
@@ -54,7 +63,7 @@ public class RecordReadChannel {
         var headerBuffer = readFromFileChannel(recordHeaderBuffer, location.offset(), recordHeaderLength());
         int prefix = headerBuffer.getInt();
         int variableSize = headerBuffer.getInt();
-        if (prefix != RECORD_PREFIX || variableSize < 1 ) {
+        if (prefix != RECORD_PREFIX || variableSize < 1) {
             throw new InvalidRecordHeaderException(prefix, variableSize);
         }
         return new RecordHeader(variableSize, headerBuffer.getLong());
@@ -69,7 +78,7 @@ public class RecordReadChannel {
             } else if (readBytes != expectedSize) {
                 throw new JournalRuntimeIOException("Number of read bytes from channel (%d) is different than expected (%d)".formatted(readBytes, expectedSize));
             }
-            return  buffer.reset();
+            return buffer.reset();
         } catch (IOException e) {
             throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
         }
