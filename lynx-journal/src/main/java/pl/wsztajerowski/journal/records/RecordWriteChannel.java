@@ -15,7 +15,7 @@ import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksu
 import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
 import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
-public class RecordWriteChannel {
+public class RecordWriteChannel implements AutoCloseable {
     private final ByteBuffer recordHeaderBuffer;
     private final FileChannel fileChannel;
 
@@ -36,12 +36,8 @@ public class RecordWriteChannel {
         }
     }
 
-    public void close() {
-        try {
+    public void close() throws IOException {
             fileChannel.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     public Location append(ByteBuffer buffer) {
