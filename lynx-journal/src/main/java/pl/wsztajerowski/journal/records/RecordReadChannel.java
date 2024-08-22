@@ -10,13 +10,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 
-import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static pl.wsztajerowski.journal.records.InvalidRecordHeaderException.invalidRecordHeaderPrefix;
 import static pl.wsztajerowski.journal.records.Record.createAndValidateRecord;
 import static pl.wsztajerowski.journal.records.RecordHeader.*;
 
-public class RecordReadChannel {
+public class RecordReadChannel implements AutoCloseable {
     private final ByteBuffer recordHeaderBuffer;
     private final FileChannel fileChannel;
 
@@ -27,19 +26,15 @@ public class RecordReadChannel {
 
     public static RecordReadChannel open(Path journalPath) {
         try {
-            FileChannel readerChannel = FileChannel.open(journalPath, CREATE, READ);
+            FileChannel readerChannel = FileChannel.open(journalPath, READ);
             return new RecordReadChannel(readerChannel);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public void close() {
-        try {
+    public void close() throws IOException {
             fileChannel.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     public Record read(ByteBuffer destination, Location location) {

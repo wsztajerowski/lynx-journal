@@ -15,7 +15,7 @@ import java.util.List;
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
 
-public class Journal {
+public class Journal implements AutoCloseable {
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
     static final int JOURNAL_PREFIX = 0xCAFEBABE;
     static final int SCHEMA_VERSION_V1 = 0x0FF1CE01;
@@ -79,9 +79,12 @@ public class Journal {
         return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path));
     }
 
-    public void closeJournal() {
-        readChannel.close();
-        writeChannel.close();
+    public void close() throws IOException {
+        try {
+            readChannel.close();
+        } finally {
+            writeChannel.close();
+        }
     }
 
     public Record readRecord(ByteBuffer destination, Location location) {

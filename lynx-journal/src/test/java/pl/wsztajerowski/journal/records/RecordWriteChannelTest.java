@@ -27,7 +27,7 @@ class RecordWriteChannelTest {
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws IOException {
         sut.close();
     }
 

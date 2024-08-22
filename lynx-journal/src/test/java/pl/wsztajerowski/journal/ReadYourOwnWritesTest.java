@@ -22,8 +22,8 @@ class ReadYourOwnWritesTest {
     }
 
     @AfterEach
-    void tearDown() {
-        sut.closeJournal();
+    void tearDown() throws IOException {
+        sut.close();
     }
 
     @Test
