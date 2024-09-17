@@ -44,6 +44,9 @@ public class RecordWriteChannel implements AutoCloseable {
         try {
             var location = new Location(fileChannel.position());
             int variableSize = buffer.remaining();
+            if (variableSize == 0) {
+                throw new JournalRuntimeIOException("Buffer contains no data to write");
+            }
             var checksum = computeChecksum(buffer);
             prepareRecordHeaderBufferToWrite(variableSize, checksum);
             int writtenHeaderBytes = fileChannel.write(recordHeaderBuffer);

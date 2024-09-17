@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,15 +42,18 @@ class MultiProducersMultiConsumersConcurrencyTest {
         int iterations = 1_000;
         try (ExecutorService executor = newFixedThreadPool(5)) {
             executor.submit(createProducer(iterations, locationQueue, writesCounter));
+            List<Future<?>> futures = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
-                executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum));
+                futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
             }
-            executor.shutdown();
-            assertThat(executor.awaitTermination(1, TimeUnit.SECONDS))
-                .isTrue();
+            for (Future<?> future : futures) {
+                future.get(1, TimeUnit.SECONDS); // Blocks until the task is completed
+            }
+        } catch (ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
         }
         assertThat(sum)
-            .hasValue(iterations*(iterations+1)/2);
+            .hasValue(iterations*(iterations-1)/2);
     }
 
     private Runnable createConsumer(int iterations, BlockingQueue<Location> locationQueue, AtomicInteger readsCounter, AtomicInteger sum) {
@@ -62,7 +67,6 @@ class MultiProducersMultiConsumersConcurrencyTest {
                     sum.addAndGet(variable.getInt());
                 }
             } catch (Exception e){
-                e.printStackTrace();
                 throw new RuntimeException(e);
             }
         };
@@ -76,11 +80,11 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 while ((iteration = writesCounter.incrementAndGet()) < iterations) {
                     buffer.clear();
                     buffer.putInt(iteration);
+                    buffer.flip();
                     var location = sut.write(buffer);
                     locationQueue.offer(location);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 throw new RuntimeException(e);
             }
         };
