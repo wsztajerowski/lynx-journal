@@ -2,7 +2,6 @@ package pl.wsztajerowski.journal;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -18,7 +17,6 @@ import static java.nio.file.Files.createTempFile;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Disabled
 class MultiProducersMultiConsumersConcurrencyTest {
     private Journal sut;
 
