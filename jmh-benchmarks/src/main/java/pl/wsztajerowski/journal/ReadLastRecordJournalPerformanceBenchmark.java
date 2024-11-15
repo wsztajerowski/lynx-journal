@@ -1,6 +1,6 @@
 package pl.wsztajerowski.journal;
 
-import org.jctools.queues.atomic.SpscLinkedAtomicQueue;
+import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Control;
 import pl.wsztajerowski.journal.records.Record;
@@ -16,13 +16,13 @@ public class ReadLastRecordJournalPerformanceBenchmark {
 
     Journal journal;
     Path dataFilePath;
-    SpscLinkedAtomicQueue<Location> queue;
+    MpmcUnboundedXaddArrayQueue<Location> queue;
 
     @Setup
     public void setup() throws IOException {
         dataFilePath = createTempFile("jmh-journal", ".dat");
         journal = Journal.open(dataFilePath, false);
-        queue = new SpscLinkedAtomicQueue<>();
+        queue = new MpmcUnboundedXaddArrayQueue<>(1000);
     }
 
     @TearDown
@@ -41,8 +41,8 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     }
 
     @Benchmark
-    @GroupThreads(1)
-    @Group("g1")
+    @GroupThreads(5)
+    @Group("journal_mpmc")
     public Location produceElement(ThreadScopeState threadScopeState) {
         ByteBuffer input = threadScopeState.buffer;
         input.clear();
@@ -56,8 +56,8 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     }
 
     @Benchmark
-    @GroupThreads(1)
-    @Group("g1")
+    @GroupThreads(5)
+    @Group("journal_mpmc")
     public Record consumeElement(ThreadScopeState threadScopeState, Control control) {
         ByteBuffer output = threadScopeState.buffer;
         output.clear();
