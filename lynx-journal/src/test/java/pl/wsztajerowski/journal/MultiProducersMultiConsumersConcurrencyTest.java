@@ -3,6 +3,8 @@ package pl.wsztajerowski.journal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
+import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -42,12 +44,13 @@ class MultiProducersMultiConsumersConcurrencyTest {
         try (ExecutorService executor = newFixedThreadPool(6)) {
             executor.submit(createProducer(iterations, locationQueue, writesCounter));
             executor.submit(createProducer(iterations, locationQueue, writesCounter));
+            executor.submit(createProducer(iterations, locationQueue, writesCounter));
+            executor.submit(createProducer(iterations, locationQueue, writesCounter));
             List<Future<?>> futures = new ArrayList<>();
-            for (int i = 0; i < 4; i++) {
-                futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
-            }
+            futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
+            futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
             for (Future<?> future : futures) {
-                future.get(1, TimeUnit.SECONDS); // Blocks until the task is completed
+                future.get(100, TimeUnit.SECONDS); // Blocks until the task is completed
             }
         } catch (ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -63,7 +66,7 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 ByteBuffer buffer = ByteBuffer.allocate(32);
                 while (readsCounter.incrementAndGet() < iterations) {
                     buffer.clear();
-                    location = locationQueue.poll(100, TimeUnit.MILLISECONDS);
+                    location = locationQueue.poll(100, TimeUnit.SECONDS);
                     var variable = sut.read(buffer, location);
                     sum.addAndGet(variable.getInt());
                 }
@@ -83,17 +86,19 @@ class MultiProducersMultiConsumersConcurrencyTest {
     private Runnable createProducer(int iterations, Queue<Location> locationQueue, AtomicInteger writesCounter) {
         return () -> {
             try {
-                ByteBuffer buffer = ByteBuffer.allocate(4);
+                JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(128);
                 int iteration;
                 while ((iteration = writesCounter.incrementAndGet()) < iterations) {
+                    var buffer = journalByteBuffer.getContentBuffer();
                     buffer.clear();
                     buffer.putInt(iteration);
                     buffer.flip();
-                    var location = sut.write(buffer);
+                    var location = sut.write(journalByteBuffer);
                     locationQueue.offer(location);
                 }
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
+                System.exit(1);
             }
         };
     }

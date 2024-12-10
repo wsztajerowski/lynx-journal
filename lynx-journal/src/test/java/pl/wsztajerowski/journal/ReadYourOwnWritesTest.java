@@ -30,7 +30,7 @@ class ReadYourOwnWritesTest {
     void readYourSingleWrite() {
         // given
         var content = "Hello World";
-        var buffer = wrapInByteBuffer(content);
+        var buffer = FilesTestUtils.wrapInJournalByteBuffer(content);
 
         // when
         var location = sut.write(buffer);
@@ -51,9 +51,9 @@ class ReadYourOwnWritesTest {
         var thirdVariableContent = "project!";
 
         // when
-        var firstVariableLocation = sut.write(wrapInByteBuffer(firstVariableContent));
-        var secondVariableLocation = sut.write(wrapInByteBuffer(secondVariableContent));
-        var thirdVariableLocation = sut.write(wrapInByteBuffer(thirdVariableContent));
+        var firstVariableLocation = sut.write(wrapInJournalByteBuffer(firstVariableContent));
+        var secondVariableLocation = sut.write(wrapInJournalByteBuffer(secondVariableContent));
+        var thirdVariableLocation = sut.write(wrapInJournalByteBuffer(thirdVariableContent));
         // and
         var secondReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), secondVariableLocation));
         var firstReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), firstVariableLocation));

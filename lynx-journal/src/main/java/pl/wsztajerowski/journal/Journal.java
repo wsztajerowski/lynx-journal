@@ -1,5 +1,6 @@
 package pl.wsztajerowski.journal;
 
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
 import pl.wsztajerowski.journal.records.Record;
 import pl.wsztajerowski.journal.records.RecordReadChannel;
 import pl.wsztajerowski.journal.records.RecordWriteChannel;
@@ -96,7 +97,7 @@ public class Journal implements AutoCloseable {
             .buffer();
     }
 
-    public Location write(ByteBuffer buffer) {
+    public Location write(JournalByteBuffer buffer) {
         return writeChannel.append(buffer);
     }
 }
