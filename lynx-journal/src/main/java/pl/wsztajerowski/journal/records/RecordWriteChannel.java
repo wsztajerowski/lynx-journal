@@ -1,7 +1,7 @@
 package pl.wsztajerowski.journal.records;
 
-import pl.wsztajerowski.journal.Location;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
+import pl.wsztajerowski.journal.Location;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -10,10 +10,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.locks.ReentrantLock;
-
-import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksum;
-import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
-import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
 public class RecordWriteChannel implements AutoCloseable {
     private final FileChannel fileChannel;
@@ -39,18 +35,12 @@ public class RecordWriteChannel implements AutoCloseable {
     }
 
     public Location append(JournalByteBuffer journalBuffer) {
-        var buffer = journalBuffer.getContentBuffer();
-        int variableSize = buffer.remaining();
-        if (variableSize == 0) {
-            throw new JournalRuntimeIOException("Buffer contains no data to write");
-        }
-        var checksum = computeChecksum(buffer);
-        prepareRecordHeaderBufferToWrite(variableSize, checksum, journalBuffer.getHeaderBuffer());
+        ByteBuffer writableBuffer = journalBuffer.getWritableBuffer();
+        var expectedRecordSize = writableBuffer.limit();
         lock.lock();
         try {
             var location = new Location(fileChannel.position());
-            int writtenRecordBytes = fileChannel.write(journalBuffer.getWritableBuffer());
-            int expectedRecordSize = recordHeaderLength() + variableSize;
+            var writtenRecordBytes = fileChannel.write(writableBuffer);
             if (writtenRecordBytes != expectedRecordSize) {
                 throw new JournalRuntimeIOException("Number of bytes written to channel (%d) is different than sum of record's header size and input variable size (%d)".formatted(writtenRecordBytes, expectedRecordSize));
             }
@@ -60,12 +50,5 @@ public class RecordWriteChannel implements AutoCloseable {
         } finally {
             lock.unlock();
         }
-    }
-
-    private void prepareRecordHeaderBufferToWrite(int variableSize, int checksum, ByteBuffer headerBuffer) {
-        headerBuffer.putInt(0, RECORD_PREFIX);
-        headerBuffer.putInt(4, variableSize);
-        headerBuffer.putInt(8, checksum);
-        headerBuffer.rewind();
     }
 }
