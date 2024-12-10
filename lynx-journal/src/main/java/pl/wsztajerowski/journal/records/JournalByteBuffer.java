@@ -1,6 +1,11 @@
 package pl.wsztajerowski.journal.records;
 
+import pl.wsztajerowski.journal.JournalRuntimeIOException;
+
 import java.nio.ByteBuffer;
+
+import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksum;
+import static pl.wsztajerowski.journal.records.RecordHeader.RECORD_PREFIX;
 
 public class JournalByteBuffer {
     private final ByteBuffer byteBuffer;
@@ -17,14 +22,23 @@ public class JournalByteBuffer {
         return contentBuffer;
     }
 
-    ByteBuffer getHeaderBuffer(){
-        return headerBuffer;
+    private void prepareRecordHeaderBufferToWrite(int variableSize, int checksum) {
+        headerBuffer.putInt(0, RECORD_PREFIX);
+        headerBuffer.putInt(4, variableSize);
+        headerBuffer.putInt(8, checksum);
+        headerBuffer.rewind();
     }
 
     ByteBuffer getWritableBuffer(){
+        int variableSize = contentBuffer.remaining();
+        if (variableSize == 0) {
+            throw new JournalRuntimeIOException("Buffer contains no data to write");
+        }
+        var checksum = computeChecksum(contentBuffer);
+        prepareRecordHeaderBufferToWrite(variableSize, checksum);
         return this.byteBuffer
             .duplicate()
-            .limit(headerBuffer.capacity() + contentBuffer.limit())
+            .limit(headerBuffer.capacity() + this.contentBuffer.limit())
             .rewind();
     }
 }
