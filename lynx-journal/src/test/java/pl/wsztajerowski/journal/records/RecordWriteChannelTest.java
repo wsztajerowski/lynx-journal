@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.BytesTestUtils.toUpperCaseHexString;
 import static pl.wsztajerowski.journal.BytesTestUtils.toUtf8HexString;
 import static pl.wsztajerowski.journal.FilesTestUtils.wrapInByteBuffer;
+import static pl.wsztajerowski.journal.FilesTestUtils.wrapInJournalByteBuffer;
 import static pl.wsztajerowski.journal.records.RecordTestUtils.recordHeaderPrefixInHexString;
 
 class RecordWriteChannelTest {
@@ -34,8 +35,9 @@ class RecordWriteChannelTest {
     @Test
     void journalWithSavedVariableContainsCorrectRecord() throws IOException {
         // given
-        String content = "test";
-        ByteBuffer buffer = wrapInByteBuffer(content);
+        var content = "test";
+        var buffer = wrapInJournalByteBuffer(content);
+
 
         // when
         sut.append(buffer);
