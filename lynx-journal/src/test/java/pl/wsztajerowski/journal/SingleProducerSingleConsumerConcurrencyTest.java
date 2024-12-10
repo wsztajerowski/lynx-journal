@@ -3,6 +3,7 @@ package pl.wsztajerowski.journal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -74,7 +75,8 @@ class SingleProducerSingleConsumerConcurrencyTest {
         return () -> {
             try {
                 for (int i = 0; i < iterations; i++) {
-                    var location = sut.write(ByteBuffer.wrap("TEST DATA - %08d".formatted(i).getBytes()));
+                    JournalByteBuffer journalByteBuffer = FilesTestUtils.wrapInJournalByteBuffer("TEST DATA - %08d".formatted(i));
+                    var location = sut.write(journalByteBuffer);
                     locationQueue.add(location);
                 }
             } catch (Exception e) {
