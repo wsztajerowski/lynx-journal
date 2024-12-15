@@ -1,6 +1,4 @@
-package pl.wsztajerowski.journal.records;
-
-import pl.wsztajerowski.journal.JournalRuntimeIOException;
+package pl.wsztajerowski.journal;
 
 import java.nio.ByteBuffer;
 
@@ -29,7 +27,7 @@ public class JournalByteBuffer {
         headerBuffer.rewind();
     }
 
-    ByteBuffer getWritableBuffer(){
+    public ByteBuffer getWritableBuffer(){
         int variableSize = contentBuffer.remaining();
         if (variableSize == 0) {
             throw new JournalRuntimeIOException("Buffer contains no data to write");
