@@ -27,8 +27,8 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     }
 
     @TearDown
-    public void tearDown() {
-
+    public void tearDown() throws IOException {
+        journal.close();
     }
 
     @State(Scope.Thread)
