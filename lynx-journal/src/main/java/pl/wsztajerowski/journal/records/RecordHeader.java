@@ -4,7 +4,7 @@ import static pl.wsztajerowski.journal.records.InvalidRecordHeaderException.inva
 
 public record RecordHeader(int variableSize, int checksum){
     // v02 record header format: [ int prefix, int variableSize, int checksum ]
-    static final int RECORD_PREFIX = 0xF0CACC1A;
+    public static final int RECORD_PREFIX = 0xF0CACC1A;
     private static final int NUMBER_OF_INTS_IN_HEADER = 3;
 
     public static int recordHeaderLength() {

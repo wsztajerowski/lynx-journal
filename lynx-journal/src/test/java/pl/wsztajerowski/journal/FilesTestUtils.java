@@ -1,9 +1,5 @@
 package pl.wsztajerowski.journal;
 
-import pl.wsztajerowski.journal.records.JournalByteBuffer;
-import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
-import pl.wsztajerowski.journal.records.RecordHeader;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
