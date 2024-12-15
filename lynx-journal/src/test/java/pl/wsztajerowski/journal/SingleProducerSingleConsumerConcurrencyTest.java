@@ -3,7 +3,6 @@ package pl.wsztajerowski.journal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

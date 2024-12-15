@@ -3,17 +3,19 @@ package pl.wsztajerowski.journal.records;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.Location;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.BytesTestUtils.toUpperCaseHexString;
 import static pl.wsztajerowski.journal.BytesTestUtils.toUtf8HexString;
-import static pl.wsztajerowski.journal.FilesTestUtils.wrapInByteBuffer;
 import static pl.wsztajerowski.journal.FilesTestUtils.wrapInJournalByteBuffer;
 import static pl.wsztajerowski.journal.records.RecordTestUtils.recordHeaderPrefixInHexString;
 
@@ -24,7 +26,7 @@ class RecordWriteChannelTest {
     @BeforeEach
     void setUp() throws IOException {
         dataFilePath = createTempFile("journal", ".dat");
-        sut = RecordWriteChannel.open(dataFilePath);
+        sut = RecordWriteChannel.open(dataFilePath, new LinkedBlockingQueue<>());
     }
 
     @AfterEach
@@ -33,16 +35,17 @@ class RecordWriteChannelTest {
     }
 
     @Test
-    void journalWithSavedVariableContainsCorrectRecord() throws IOException {
+    void journalWithSavedVariableContainsCorrectRecord() throws IOException, InterruptedException {
         // given
         var content = "test";
         var buffer = wrapInJournalByteBuffer(content);
-
+        CompletableFuture<Location> future = new CompletableFuture<>();
 
         // when
-        sut.append(buffer);
+        sut.dumpRecordsToFile(List.of(new RecordWriteTask(buffer.getWritableBuffer(), future)));
 
         // then
+        future.join();
         assertThat(readAllBytes(dataFilePath))
             .asHexString()
             .containsSequence(

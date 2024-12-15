@@ -1,14 +1,13 @@
 package pl.wsztajerowski.journal;
 
 import org.openjdk.jmh.annotations.*;
-import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
-import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
+import static pl.wsztajerowski.journal.JournalByteBufferFactory.createJournalByteBuffer;
 
 @State(Scope.Benchmark)
 public class WriteOnlyJournalPerformanceBenchmark {
