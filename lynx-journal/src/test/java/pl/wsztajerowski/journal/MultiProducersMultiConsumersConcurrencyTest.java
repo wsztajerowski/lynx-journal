@@ -21,6 +21,8 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MultiProducersMultiConsumersConcurrencyTest {
+    private static final int PRODUCER_THREADS = 4;
+    private static final int CONSUMER_THREADS = 4;
     private Journal sut;
 
     @BeforeEach
@@ -41,14 +43,14 @@ class MultiProducersMultiConsumersConcurrencyTest {
         AtomicInteger readsCounter = new AtomicInteger(0);
         AtomicInteger sum = new AtomicInteger(0);
         int iterations = 1_000;
-        try (ExecutorService executor = newFixedThreadPool(6)) {
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
+        try (ExecutorService executor = newFixedThreadPool(PRODUCER_THREADS + CONSUMER_THREADS)) {
+            for (int i = 0; i < PRODUCER_THREADS; i++) {
+                executor.submit(createProducer(iterations, locationQueue, writesCounter));
+            }
             List<Future<?>> futures = new ArrayList<>();
-            futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
-            futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
+            for (int i = 0; i < CONSUMER_THREADS; i++) {
+                futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
+            }
             for (Future<?> future : futures) {
                 future.get(100, TimeUnit.SECONDS); // Blocks until the task is completed
             }
