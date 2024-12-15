@@ -91,6 +91,7 @@ public class Journal implements AutoCloseable {
     public void close() throws IOException {
         try {
             readChannel.close();
+            writeChannelExecutor.shutdown();
         } finally {
             writeChannel.close();
         }
