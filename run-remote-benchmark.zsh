@@ -28,7 +28,7 @@ display_usage() {
 PARAMETERS_START=0
 for ARG in "$@"; do
     if [[ $PARAMETERS_START -eq 1 ]]; then
-        BENCHMARK_PARAMETERS+="$ARG"
+        BENCHMARK_PARAMETERS+=("$ARG")
         continue
     fi
 
