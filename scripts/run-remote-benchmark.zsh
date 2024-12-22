@@ -83,6 +83,7 @@ fi
 REQUEST_NO=$(date -u +"%Y%m%d_%H%M%S")
 REQUEST_ID="$BENCHMARK_TYPE-$REQUEST_NO"
 RESULT_PATH="$BRANCH/$BENCHMARK_TYPE/$REQUEST_NO"
+log INFO "Preparing request with id: $REQUEST_ID"
 
 # Step 3: Trigger GitHub Actions workflow with GitHub CLI
 log INFO "Triggering GitHub Actions workflow..."
@@ -111,9 +112,13 @@ QUERY="db.jmh_benchmarks.find(
   {'_id.requestId': '$REQUEST_ID'},
   {'_id': 0,
    'jmhResult.benchmark': 1,
-   'jmhResult.primaryMetric.score': 1
+   'jmhResult.primaryMetric.score': 1,
+   'jmhResult.primaryMetric.scoreUnit': 1
   }
-);"
+)
+.forEach(function(doc) {
+   print(doc.jmhResult.benchmark.split('.').pop() + '\\t' + Math.floor(doc.jmhResult.primaryMetric.score).toLocaleString('pl-PL') + '\\t' + doc.jmhResult.primaryMetric.scoreUnit);
+});"
 
 # Check if BENCHMARK_DB_CONNECTION_STRING environment variable is defined
 if [ -z "$BENCHMARK_DB_CONNECTION_STRING" ]; then
@@ -125,7 +130,11 @@ if [ -z "$BENCHMARK_DB_CONNECTION_STRING" ]; then
 else
   # If the environment variable is defined, execute the query using mongosh
   log INFO "Querying benchmark results..."
-  mongosh "$BENCHMARK_DB_CONNECTION_STRING" --eval "$QUERY"
+  mongosh "$BENCHMARK_DB_CONNECTION_STRING" --eval "$QUERY" |
+   (
+     # Print header
+     echo -e "BENCHMARK\\tSCORE\\tUNIT" && cat
+   ) | column -t -s $'\t'
 fi
 
 echo "Script completed successfully."
