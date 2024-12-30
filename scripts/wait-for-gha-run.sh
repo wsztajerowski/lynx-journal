@@ -73,14 +73,14 @@ while true; do
             # Just break the loop on success - script will continue execution
             break
         else
-            log ERROR "Workflow failed!"
             # Print the error logs
-            gh run view --repo wsztajerowski/benchmark-as-a-service "$RUN_ID" --log
+            gh run view --repo wsztajerowski/benchmark-as-a-service "$RUN_ID" --log | cat
+            log ERROR "Workflow failed!"
             exit 1
         fi
     elif [ "$STATUS" = "failed" ]; then
+        gh run view --repo wsztajerowski/benchmark-as-a-service "$RUN_ID" --log | cat
         log ERROR "Workflow failed!"
-        gh run view --repo wsztajerowski/benchmark-as-a-service "$RUN_ID" --log
         exit 1
     fi
 

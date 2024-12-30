@@ -18,7 +18,8 @@ QUERY="db.getCollection('jmh_benchmarks').aggregate([
      },
      requestId: { \$first: '\$_id.requestId' },
      score: { \$first: '\$jmhResult.primaryMetric.score' },
-     scoreUnit: { \$first: '\$jmhResult.primaryMetric.scoreUnit' }
+     scoreUnit: { \$first: '\$jmhResult.primaryMetric.scoreUnit' },
+     options: { \$first: '\$benchmarkMetadata.tags.options' }
    }
  },
  {
@@ -28,7 +29,8 @@ QUERY="db.getCollection('jmh_benchmarks').aggregate([
      branch: '\$_id.branch',
      score: { \$round: ['\$score', 0] },
      scoreUnit: 1,
-     requestId: 1
+     requestId: 1,
+     options: 1
    }
  },
  {
@@ -36,7 +38,8 @@ QUERY="db.getCollection('jmh_benchmarks').aggregate([
  }
 ],{ maxTimeMS: 60000, allowDiskUse: true })
 .forEach(function(doc) {
-   print(doc.benchmark.split('.').pop() + '\\t' + doc.score.toLocaleString('pl-PL') + '\\t' + doc.scoreUnit + '\\t' + doc.branch + '\\t' + doc.requestId);
+   print(doc.benchmark.split('.').pop() + '\\t' + doc.score.toLocaleString('pl-PL') + '\\t' + doc.scoreUnit
+      + '\\t' + doc.branch + '\\t' + doc.requestId + '\\t' + doc.options);
 });"
 
 # Check if BENCHMARK_DB_CONNECTION_STRING environment variable is defined
@@ -51,6 +54,6 @@ else
   mongosh "$BENCHMARK_DB_CONNECTION_STRING" --eval "$QUERY" |
   (
     # Print header
-    echo -e "BENCHMARK\\tSCORE\\tUNIT\\tBRANCH\\tREQUEST_ID" && cat
+    echo -e "BENCHMARK\\tSCORE\\tUNIT\\tBRANCH\\tREQUEST_ID\\tOPTIONS" && cat
   ) | column -t -s $'\t'
 fi
