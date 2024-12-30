@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.nio.file.Files.createTempFile;
 import static java.util.concurrent.Executors.newFixedThreadPool;
@@ -38,7 +39,8 @@ class MultiProducersMultiConsumersConcurrencyTest {
         AtomicInteger readsCounter = new AtomicInteger(0);
         AtomicInteger sum = new AtomicInteger(0);
         int iterations = 1_000;
-        try (ExecutorService executor = newFixedThreadPool(5)) {
+        try (ExecutorService executor = newFixedThreadPool(6)) {
+            executor.submit(createProducer(iterations, locationQueue, writesCounter));
             executor.submit(createProducer(iterations, locationQueue, writesCounter));
             List<Future<?>> futures = new ArrayList<>();
             for (int i = 0; i < 4; i++) {
@@ -56,15 +58,23 @@ class MultiProducersMultiConsumersConcurrencyTest {
 
     private Runnable createConsumer(int iterations, BlockingQueue<Location> locationQueue, AtomicInteger readsCounter, AtomicInteger sum) {
         return () -> {
+            Location location = null;
             try {
                 ByteBuffer buffer = ByteBuffer.allocate(32);
                 while (readsCounter.incrementAndGet() < iterations) {
                     buffer.clear();
-                    Location location = locationQueue.poll(100, TimeUnit.MILLISECONDS);
+                    location = locationQueue.poll(100, TimeUnit.MILLISECONDS);
                     var variable = sut.read(buffer, location);
                     sum.addAndGet(variable.getInt());
                 }
             } catch (Exception e){
+                e.printStackTrace();
+                String collected = locationQueue
+                    .stream()
+                    .map(Location::offset)
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(",", "Queue[", "]"));
+                System.out.println(location + ": " + e.getMessage()+ ": " + collected);
                 throw new RuntimeException(e);
             }
         };

@@ -87,7 +87,7 @@ public class Journal implements AutoCloseable {
         }
     }
 
-    public synchronized Record readRecord(ByteBuffer destination, Location location) {
+    public Record readRecord(ByteBuffer destination, Location location) {
         return readChannel.read(destination, location);
     }
 
@@ -96,7 +96,7 @@ public class Journal implements AutoCloseable {
             .buffer();
     }
 
-    public synchronized Location write(ByteBuffer buffer) {
+    public Location write(ByteBuffer buffer) {
         return writeChannel.append(buffer);
     }
 }

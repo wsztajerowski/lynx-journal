@@ -16,12 +16,12 @@ import static pl.wsztajerowski.journal.records.Record.createAndValidateRecord;
 import static pl.wsztajerowski.journal.records.RecordHeader.*;
 
 public class RecordReadChannel implements AutoCloseable {
-    private final ByteBuffer recordHeaderBuffer;
+    private final ThreadLocal<ByteBuffer> recordHeaderBuffer;
     private final FileChannel fileChannel;
 
     RecordReadChannel(FileChannel fileChannel) {
         this.fileChannel = fileChannel;
-        recordHeaderBuffer = ByteBuffer.allocate(recordHeaderLength());
+        recordHeaderBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocate(recordHeaderLength()));
     }
 
     public static RecordReadChannel open(Path journalPath) {
@@ -51,8 +51,9 @@ public class RecordReadChannel implements AutoCloseable {
     }
 
     private RecordHeader readRecordHeader(Location location) {
-        recordHeaderBuffer.clear();
-        var headerBuffer = readFromFileChannel(recordHeaderBuffer, location.offset(), recordHeaderLength());
+        ByteBuffer localByteBuffer = recordHeaderBuffer.get();
+        localByteBuffer.clear();
+        var headerBuffer = readFromFileChannel(localByteBuffer, location.offset(), recordHeaderLength());
         int prefix = headerBuffer.getInt();
         if (prefix != RECORD_PREFIX) {
             throw invalidRecordHeaderPrefix(prefix);
