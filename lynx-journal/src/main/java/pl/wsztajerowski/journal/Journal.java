@@ -109,10 +109,8 @@ public class Journal implements AutoCloseable {
     public Location write(JournalByteBuffer buffer) {
         CompletableFuture<Location> future = new CompletableFuture<>();
         RecordWriteTask task = new RecordWriteTask(buffer.getWritableBuffer(), future);
-        try {
-            writingQueue.put(task); // Add the task to the queue
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        while (!writingQueue.offer(task)) {
+            Thread.onSpinWait();
         }
         return future.join();
     }
