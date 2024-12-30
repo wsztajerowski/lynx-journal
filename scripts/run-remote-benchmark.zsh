@@ -13,19 +13,18 @@ WORKFLOW_BRANCH="main"
 WORKFLOW_NAME="benchmark-runner.yml"
 AWS_PROFILE="lynx"
 S3_BUCKET="baas-lynx-main"
-BENCHMARK_PARAMETERS=("--tag project=lynx-journal")
+BENCHMARK_PARAMETERS=()
 BENCHMARK_TYPE=""
 BENCHMARK_REPO="wsztajerowski/benchmark-as-a-service"
 SKIP_BUILD=false
 
 # Function to display usage and exit
 display_usage() {
-    echo "Usage: $0 -t=<type> [-w=<branch>] [-p=<profile>] [-n=<name>] -- [additional parameters]"
+    echo "Usage: $0 -t=<type> [-w=<branch>] [-p=<profile>] -- [additional parameters]"
     echo "\nOptions:"
     echo "  -t, --benchmark-type=<type>       Required. One of: jmh, jmh-with-async"
     echo "  -w, --workflow-branch=<branch>    Optional. Default: 'main'"
     echo "  -p, --aws-profile=<profile>       Optional. AWS CLI profile to use"
-    echo "  -n, --benchmark-name=<name>       Optional. Filter by benchmark name"
     echo "  -sb, --skip-build                Optional. Skip Maven build step"
     echo "  -h, --help                       Display this help message and exit"
     echo "  --                               Denotes the end of options and start of parameters"
@@ -44,7 +43,6 @@ for ARG in "$@"; do
         -t=*|--benchmark-type=*) BENCHMARK_TYPE="${ARG#*=}" ;;
         -w=*|--workflow-branch=*) WORKFLOW_BRANCH="${ARG#*=}" ;;
         -p=*|--aws-profile=*) AWS_PROFILE="${ARG#*=}" ;;
-        -n=*|--benchmark-name=*) BENCHMARK_NAME="${ARG#*=}" ;;
         -sb|--skip-build) SKIP_BUILD=true ;;
         --) PARAMETERS_START=1 ;;
         *) log ERROR "Unknown option: $ARG"; display_usage; exit 1 ;;
@@ -95,7 +93,7 @@ gh workflow run "$WORKFLOW_NAME" \
     -f benchmark_type="$BENCHMARK_TYPE" \
     -f benchmark_path="$S3_BENCHMARK_PATH" \
     -f s3_result_bucket="$S3_BUCKET" \
-    -f parameters="$BENCHMARK_NAME $BENCHMARK_PARAMETERS --tag branch=$BRANCH --tag type=$BENCHMARK_TYPE"
+    -f parameters="$BENCHMARK_PARAMETERS --tag branch=$BRANCH --tag type=$BENCHMARK_TYPE --tag project=lynx-journal --tag options='$BENCHMARK_PARAMETERS'"
 if [[ $? -ne 0 ]]; then
     log ERROR "Failed to trigger GitHub Actions workflow."
     exit 1
