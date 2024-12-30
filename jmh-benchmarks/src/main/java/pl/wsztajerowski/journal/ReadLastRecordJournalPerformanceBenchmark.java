@@ -50,8 +50,7 @@ public class ReadLastRecordJournalPerformanceBenchmark {
         input.clear();
         input.putInt(41);
         input.flip();
-        Location location =  journal
-            .write(buffer);
+        Location location =  journal.write(buffer);
         queue.offer(location);
 //        System.out.printf("Produced %s (%d-8)/16=%d%n", location, location.offset(),(location.offset() - 8) / 16);
         return location;
@@ -71,12 +70,10 @@ public class ReadLastRecordJournalPerformanceBenchmark {
             return null;
         }
         try {
-            return journal
-                .readRecord(output, location);
+            return journal.readRecord(output, location);
         } catch (JournalException e) {
             System.out.printf("Reading record %s throws an exception. Data file: %s %n", location, dataFilePath);
             throw e;
         }
     }
-
 }
