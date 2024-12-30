@@ -36,8 +36,8 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
     }
 
     public void close() throws IOException {
-        fileChannel.close();
         isClosed.set(true);
+        fileChannel.close();
     }
 
     public void run() {
