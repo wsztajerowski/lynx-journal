@@ -22,8 +22,8 @@ public class WriteOnlyJournalPerformanceBenchmark {
     }
 
     @TearDown
-    public void tearDown() {
-
+    public void tearDown() throws IOException {
+        journal.close();
     }
 
     @State(Scope.Thread)

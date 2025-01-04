@@ -23,8 +23,8 @@ public class RoundTripJournalPerformanceBenchmark {
     }
 
     @TearDown
-    public void tearDown() {
-
+    public void tearDown() throws IOException {
+        journal.close();
     }
 
     @State(Scope.Thread)

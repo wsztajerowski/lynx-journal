@@ -50,10 +50,10 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
             try {
                 dumpRecordsToFile(tasks);
             } catch (Exception e) {
-                Thread.currentThread().interrupt();
                 for (RecordWriteTask task : tasks) {
                     task.completeExceptionally(e);
                 }
+                Thread.currentThread().interrupt();
                 throw new JournalException("Error writing to FileChannel", e);
             }
         }
