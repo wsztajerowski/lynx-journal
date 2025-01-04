@@ -17,15 +17,19 @@ BENCHMARK_PARAMETERS=()
 BENCHMARK_TYPE=""
 BENCHMARK_REPO="wsztajerowski/benchmark-as-a-service"
 SKIP_BUILD=false
+WORKER_FAMILY=""
+WORKER_SIZE=""
 
 # Function to display usage and exit
 display_usage() {
-    echo "Usage: $0 -t=<type> [-w=<branch>] [-p=<profile>] -- [additional parameters]"
+    echo "Usage: $0 -t=<type> [-w=<branch>] [-p=<profile>] [-wf=<family>] [-ws=<size>] -- [additional parameters]"
     echo "\nOptions:"
     echo "  -t, --benchmark-type=<type>       Required. One of: jmh, jmh-with-async"
     echo "  -w, --workflow-branch=<branch>    Optional. Default: 'main'"
     echo "  -p, --aws-profile=<profile>       Optional. AWS CLI profile to use"
     echo "  -sb, --skip-build                Optional. Skip Maven build step"
+    echo "  -wf, --worker-family=<family>    Optional. Worker family to use"
+    echo "  -ws, --worker-size=<size>        Optional. Worker size to use"
     echo "  -h, --help                       Display this help message and exit"
     echo "  --                               Denotes the end of options and start of parameters"
 }
@@ -43,6 +47,8 @@ for ARG in "$@"; do
         -t=*|--benchmark-type=*) BENCHMARK_TYPE="${ARG#*=}" ;;
         -w=*|--workflow-branch=*) WORKFLOW_BRANCH="${ARG#*=}" ;;
         -p=*|--aws-profile=*) AWS_PROFILE="${ARG#*=}" ;;
+        -wf=*|--worker-family=*) WORKER_FAMILY="${ARG#*=}" ;;
+        -ws=*|--worker-size=*) WORKER_SIZE="${ARG#*=}" ;;
         -sb|--skip-build) SKIP_BUILD=true ;;
         --) PARAMETERS_START=1 ;;
         *) log ERROR "Unknown option: $ARG"; display_usage; exit 1 ;;
@@ -85,15 +91,33 @@ log INFO "Preparing request with id: $REQUEST_ID"
 
 # Step 3: Trigger GitHub Actions workflow with GitHub CLI
 log INFO "Triggering GitHub Actions workflow..."
+
+WORKFLOW_PARAMS=(
+    -f request_id="$REQUEST_ID"
+    -f results_path="$RESULT_PATH"
+    -f benchmark_type="$BENCHMARK_TYPE"
+    -f benchmark_path="$S3_BENCHMARK_PATH"
+    -f s3_result_bucket="$S3_BUCKET"
+)
+
+BENCHMARK_PARAMETERS_TAG="$BENCHMARK_PARAMETERS"
+
+# Add worker family parameter and tag if provided
+[[ -n "$WORKER_FAMILY" ]] && BENCHMARK_PARAMETERS_TAG+=" worker-family=$WORKER_FAMILY" && WORKFLOW_PARAMS+=(-f worker_instance_family="$WORKER_FAMILY")
+# Add worker size parameter and tag if provided
+[[ -n "$WORKER_SIZE" ]] && BENCHMARK_PARAMETERS_TAG+=" worker-size=$WORKER_SIZE" && WORKFLOW_PARAMS+=(-f worker_instance_size="$WORKER_SIZE")
+
+# Add exclude-from-results tag if worker parameters are provided
+TAGS="--tag branch=$BRANCH --tag type=$BENCHMARK_TYPE --tag project=lynx-journal --tag options='$BENCHMARK_PARAMETERS_TAG'"
+[[ -n "$WORKER_FAMILY" || -n "$WORKER_SIZE" ]] && TAGS+=" --tag exclude-from-results=true"
+
+WORKFLOW_PARAMS+=(-f parameters="$BENCHMARK_PARAMETERS $TAGS")
+
 gh workflow run "$WORKFLOW_NAME" \
     --repo "$BENCHMARK_REPO" \
     --ref "$WORKFLOW_BRANCH" \
-    -f request_id="$REQUEST_ID" \
-    -f results_path="$RESULT_PATH" \
-    -f benchmark_type="$BENCHMARK_TYPE" \
-    -f benchmark_path="$S3_BENCHMARK_PATH" \
-    -f s3_result_bucket="$S3_BUCKET" \
-    -f parameters="$BENCHMARK_PARAMETERS --tag branch=$BRANCH --tag type=$BENCHMARK_TYPE --tag project=lynx-journal --tag options='$BENCHMARK_PARAMETERS'"
+    "${WORKFLOW_PARAMS[@]}"
+
 if [[ $? -ne 0 ]]; then
     log ERROR "Failed to trigger GitHub Actions workflow."
     exit 1
