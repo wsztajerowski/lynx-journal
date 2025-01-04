@@ -22,5 +22,5 @@ list_active_remote_branches() {
         log ERROR "Failed to list active remote Git branches." >&2
         return 1
     fi
-    echo "$branches"
+    echo "${branches[@]}"
 }

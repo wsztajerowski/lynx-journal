@@ -109,7 +109,7 @@ BENCHMARK_PARAMETERS_TAG="$BENCHMARK_PARAMETERS"
 
 # Add exclude-from-results tag if worker parameters are provided
 TAGS="--tag branch=$BRANCH --tag type=$BENCHMARK_TYPE --tag project=lynx-journal --tag options='$BENCHMARK_PARAMETERS_TAG'"
-[[ -n "$WORKER_FAMILY" || -n "$WORKER_SIZE" ]] && TAGS+=" --tag exclude-from-results=true"
+[[ -n "$WORKER_FAMILY" || -n "$WORKER_SIZE" ]] && TAGS+=" --tag exclude_from_results=true"
 
 WORKFLOW_PARAMS+=(-f parameters="$BENCHMARK_PARAMETERS $TAGS")
 
