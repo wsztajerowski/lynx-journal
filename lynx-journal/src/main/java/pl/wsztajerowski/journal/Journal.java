@@ -90,10 +90,20 @@ public class Journal implements AutoCloseable {
 
     public void close() throws IOException {
         try {
-            readChannel.close();
-            writeChannelExecutor.shutdown();
+            try {
+                writeChannelExecutor.shutdown();
+                readChannel.close();
+            } finally {
+                writeChannel.close();
+            }
         } finally {
-            writeChannel.close();
+            try {
+                if (!writeChannelExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                    writeChannelExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                writeChannelExecutor.shutdownNow();
+            }
         }
     }
 

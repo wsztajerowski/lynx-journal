@@ -34,7 +34,7 @@ public class RecordReadChannel implements AutoCloseable {
     }
 
     public void close() throws IOException {
-            fileChannel.close();
+        fileChannel.close();
     }
 
     public Record read(ByteBuffer destination, Location location) {
