@@ -14,6 +14,15 @@ public class FilesTestUtils {
     public static ByteBuffer wrapInByteBuffer(String content) {
         return ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8));
     }
+    public static JournalByteBuffer wrapInJournalByteBuffer(String content) {
+        byte[] contentBytes = content.getBytes(UTF_8);
+        JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(contentBytes.length);
+        ByteBuffer contentBuffer = journalByteBuffer.getContentBuffer();
+        contentBuffer
+            .put(contentBytes);
+        contentBuffer.flip();
+        return journalByteBuffer;
+    }
 
     public static String readAsUtf8(ByteBuffer buffer) {
         byte[] bytes = new byte[buffer.remaining()];

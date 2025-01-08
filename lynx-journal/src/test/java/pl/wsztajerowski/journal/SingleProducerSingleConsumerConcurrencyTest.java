@@ -74,7 +74,8 @@ class SingleProducerSingleConsumerConcurrencyTest {
         return () -> {
             try {
                 for (int i = 0; i < iterations; i++) {
-                    var location = sut.write(ByteBuffer.wrap("TEST DATA - %08d".formatted(i).getBytes()));
+                    JournalByteBuffer journalByteBuffer = FilesTestUtils.wrapInJournalByteBuffer("TEST DATA - %08d".formatted(i));
+                    var location = sut.write(journalByteBuffer);
                     locationQueue.add(location);
                 }
             } catch (Exception e) {

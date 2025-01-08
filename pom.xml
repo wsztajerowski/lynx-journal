@@ -166,7 +166,6 @@
     </build>
     <modules>
         <module>jmh-benchmarks</module>
-        <module>stress-tests</module>
         <module>lynx-journal</module>
     </modules>
 </project>

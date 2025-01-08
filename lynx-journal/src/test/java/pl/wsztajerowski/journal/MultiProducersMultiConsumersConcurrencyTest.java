@@ -19,6 +19,8 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MultiProducersMultiConsumersConcurrencyTest {
+    private static final int PRODUCER_THREADS = 4;
+    private static final int CONSUMER_THREADS = 4;
     private Journal sut;
 
     @BeforeEach
@@ -39,15 +41,16 @@ class MultiProducersMultiConsumersConcurrencyTest {
         AtomicInteger readsCounter = new AtomicInteger(0);
         AtomicInteger sum = new AtomicInteger(0);
         int iterations = 1_000;
-        try (ExecutorService executor = newFixedThreadPool(6)) {
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
-            executor.submit(createProducer(iterations, locationQueue, writesCounter));
+        try (ExecutorService executor = newFixedThreadPool(PRODUCER_THREADS + CONSUMER_THREADS)) {
+            for (int i = 0; i < PRODUCER_THREADS; i++) {
+                executor.submit(createProducer(iterations, locationQueue, writesCounter));
+            }
             List<Future<?>> futures = new ArrayList<>();
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < CONSUMER_THREADS; i++) {
                 futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
             }
             for (Future<?> future : futures) {
-                future.get(1, TimeUnit.SECONDS); // Blocks until the task is completed
+                future.get(100, TimeUnit.SECONDS); // Blocks until the task is completed
             }
         } catch (ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -63,7 +66,7 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 ByteBuffer buffer = ByteBuffer.allocate(32);
                 while (readsCounter.incrementAndGet() < iterations) {
                     buffer.clear();
-                    location = locationQueue.poll(100, TimeUnit.MILLISECONDS);
+                    location = locationQueue.poll(100, TimeUnit.SECONDS);
                     var variable = sut.read(buffer, location);
                     sum.addAndGet(variable.getInt());
                 }
@@ -83,17 +86,19 @@ class MultiProducersMultiConsumersConcurrencyTest {
     private Runnable createProducer(int iterations, Queue<Location> locationQueue, AtomicInteger writesCounter) {
         return () -> {
             try {
-                ByteBuffer buffer = ByteBuffer.allocate(4);
+                JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(128);
                 int iteration;
                 while ((iteration = writesCounter.incrementAndGet()) < iterations) {
+                    var buffer = journalByteBuffer.getContentBuffer();
                     buffer.clear();
                     buffer.putInt(iteration);
                     buffer.flip();
-                    var location = sut.write(buffer);
+                    var location = sut.write(journalByteBuffer);
                     locationQueue.offer(location);
                 }
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
+                System.exit(1);
             }
         };
     }

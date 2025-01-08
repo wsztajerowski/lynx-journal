@@ -3,6 +3,7 @@ package pl.wsztajerowski.journal;
 import pl.wsztajerowski.journal.records.Record;
 import pl.wsztajerowski.journal.records.RecordReadChannel;
 import pl.wsztajerowski.journal.records.RecordWriteChannel;
+import pl.wsztajerowski.journal.records.RecordWriteTask;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.*;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
@@ -23,9 +25,14 @@ public class Journal implements AutoCloseable {
     private final RecordReadChannel readChannel;
     private final RecordWriteChannel writeChannel;
 
-    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel) {
+    private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor();
+    private final BlockingQueue<RecordWriteTask> writingQueue;
+
+    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, BlockingQueue<RecordWriteTask> writingQueue) {
         this.readChannel = readChannel;
         this.writeChannel = writeChannel;
+        this.writingQueue = writingQueue;
+        writeChannelExecutor.submit(writeChannel);
     }
 
     static int journalHeaderLength() {
@@ -67,7 +74,8 @@ public class Journal implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path));
+        BlockingQueue<RecordWriteTask> writingQueue = new LinkedBlockingQueue<>();
+        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path, writingQueue), writingQueue);
     }
 
     private static Journal initJournal(Path path) {
@@ -76,14 +84,26 @@ public class Journal implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path));
+        BlockingQueue<RecordWriteTask> writingQueue = new LinkedBlockingQueue<>();
+        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path, writingQueue), writingQueue);
     }
 
     public void close() throws IOException {
         try {
-            readChannel.close();
+            try {
+                writeChannelExecutor.shutdown();
+                readChannel.close();
+            } finally {
+                writeChannel.close();
+            }
         } finally {
-            writeChannel.close();
+            try {
+                if (!writeChannelExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                    writeChannelExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                writeChannelExecutor.shutdownNow();
+            }
         }
     }
 
@@ -96,7 +116,12 @@ public class Journal implements AutoCloseable {
             .buffer();
     }
 
-    public Location write(ByteBuffer buffer) {
-        return writeChannel.append(buffer);
+    public Location write(JournalByteBuffer buffer) {
+        CompletableFuture<Location> future = new CompletableFuture<>();
+        RecordWriteTask task = new RecordWriteTask(buffer.getWritableBuffer(), future);
+        while (!writingQueue.offer(task)) {
+            Thread.onSpinWait();
+        }
+        return future.join();
     }
 }
