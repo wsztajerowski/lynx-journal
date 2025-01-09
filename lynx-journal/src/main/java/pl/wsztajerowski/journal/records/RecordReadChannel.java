@@ -64,7 +64,7 @@ public class RecordReadChannel implements AutoCloseable {
     private ByteBuffer readFromFileChannel(ByteBuffer buffer, long offset, int expectedSize) {
         try {
             var bufferCopy = buffer
-                .duplicate()
+                .mark()
                 .limit(buffer.position() + expectedSize);
             var readBytes = fileChannel.read(bufferCopy, offset);
             if (readBytes == -1) {
@@ -72,7 +72,7 @@ public class RecordReadChannel implements AutoCloseable {
             } else if (readBytes != expectedSize) {
                 throw new JournalRuntimeIOException("Number of read bytes from channel (%d) is different than expected (%d)".formatted(readBytes, expectedSize));
             }
-            return buffer.limit(bufferCopy.limit());
+            return buffer.reset();
         } catch (IOException e) {
             throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
         }

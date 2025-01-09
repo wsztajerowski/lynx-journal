@@ -24,7 +24,7 @@ public class JournalByteBuffer {
         headerBuffer.putInt(0, RECORD_PREFIX);
         headerBuffer.putInt(4, variableSize);
         headerBuffer.putInt(8, checksum);
-        headerBuffer.rewind();
+//        headerBuffer.rewind();
     }
 
     public ByteBuffer getWritableBuffer(){
@@ -35,7 +35,7 @@ public class JournalByteBuffer {
         var checksum = computeChecksum(contentBuffer);
         prepareRecordHeaderBufferToWrite(variableSize, checksum);
         return this.byteBuffer
-            .duplicate()
+//            .duplicate()
             .limit(headerBuffer.capacity() + this.contentBuffer.limit())
             .rewind();
     }
