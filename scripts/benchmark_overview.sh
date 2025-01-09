@@ -86,9 +86,7 @@ QUERY="db.getCollection('jmh_benchmarks').aggregate([ {
     }
   },
   {
-    \$sort: {
-      'jmhResult.benchmark': 1,
-      'jmhResult.primaryMetric.score': -1 }
+    \$sort: { 'benchmark': 1, 'score': -1 }
   }
 ])
 .forEach(function(doc) {
