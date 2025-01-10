@@ -3,9 +3,9 @@ package pl.wsztajerowski.journal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -18,6 +18,7 @@ import static java.nio.file.Files.createTempFile;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
+import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
 class SingleProducerSingleConsumerConcurrencyTest {
     private Journal sut;
@@ -52,9 +53,9 @@ class SingleProducerSingleConsumerConcurrencyTest {
 
     private Runnable createConsumer(int iterations, Queue<Location> locationQueue, AtomicBoolean producerFails, AtomicInteger counter) {
         return () -> {
-            ByteBuffer buffer = ByteBuffer.allocate(32);
+            JournalByteBuffer buffer = createJournalByteBuffer(32);
             for (int i = 0; i < iterations; i++) {
-                buffer.clear();
+                buffer.getContentBuffer().clear();
                 Location location;
                 while ((location = locationQueue.poll()) == null) {
                     if (producerFails.get()) {
