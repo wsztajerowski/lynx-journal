@@ -1,9 +1,7 @@
 package pl.wsztajerowski.journal;
 
 import pl.wsztajerowski.journal.records.Record;
-import pl.wsztajerowski.journal.records.RecordReadChannel;
-import pl.wsztajerowski.journal.records.RecordWriteChannel;
-import pl.wsztajerowski.journal.records.RecordWriteTask;
+import pl.wsztajerowski.journal.records.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -107,11 +105,11 @@ public class Journal implements AutoCloseable {
         }
     }
 
-    public Record readRecord(ByteBuffer destination, Location location) {
+    public Record readRecord(JournalByteBuffer destination, Location location) {
         return readChannel.read(destination, location);
     }
 
-    public ByteBuffer read(ByteBuffer destination, Location location) {
+    public ByteBuffer read(JournalByteBuffer destination, Location location) {
         return readRecord(destination, location)
             .buffer();
     }

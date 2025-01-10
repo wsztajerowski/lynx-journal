@@ -3,6 +3,7 @@ package pl.wsztajerowski.journal;
 import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Control;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
 import pl.wsztajerowski.journal.records.Record;
 
 import java.io.IOException;
@@ -10,7 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
-import static pl.wsztajerowski.journal.JournalByteBufferFactory.createJournalByteBuffer;
+import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
 @State(Scope.Benchmark)
 public class ReadLastRecordJournalPerformanceBenchmark {
@@ -60,8 +61,8 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     @GroupThreads(5)
     @Group("journal_mpmc")
     public Record consumeElement(ThreadScopeState threadScopeState, Control control) {
-        ByteBuffer output = threadScopeState.buffer.getContentBuffer();
-        output.clear();
+        var output = threadScopeState.buffer;
+        output.getContentBuffer().clear();
         Location location = null;
         while (!control.stopMeasurement && (location = queue.poll()) == null) {
             // active waiting

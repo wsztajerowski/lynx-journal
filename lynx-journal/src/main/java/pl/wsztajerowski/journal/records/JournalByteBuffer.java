@@ -1,4 +1,6 @@
-package pl.wsztajerowski.journal;
+package pl.wsztajerowski.journal.records;
+
+import pl.wsztajerowski.journal.JournalRuntimeIOException;
 
 import java.nio.ByteBuffer;
 
