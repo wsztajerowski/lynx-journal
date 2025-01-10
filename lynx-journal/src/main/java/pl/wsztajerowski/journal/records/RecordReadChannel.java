@@ -21,7 +21,7 @@ public class RecordReadChannel implements AutoCloseable {
 
     RecordReadChannel(FileChannel fileChannel) {
         this.fileChannel = fileChannel;
-        recordHeaderBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocate(recordHeaderLength()));
+        recordHeaderBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(recordHeaderLength()));
     }
 
     public static RecordReadChannel open(Path journalPath) {
@@ -37,10 +37,10 @@ public class RecordReadChannel implements AutoCloseable {
         fileChannel.close();
     }
 
-    public Record read(ByteBuffer destination, Location location) {
+    public Record read(JournalByteBuffer destination, Location location) {
         var recordHeader = readRecordHeader(location);
-        validateDestinationBufferSpace(destination, recordHeader);
-        var variableBuffer = readFromFileChannel(destination, location.offset() + recordHeaderLength(), recordHeader.variableSize());
+        validateDestinationBufferSpace(destination.getContentBuffer(), recordHeader);
+        var variableBuffer = readFromFileChannel(destination.getContentBuffer(), location.offset() + recordHeaderLength(), recordHeader.variableSize());
         return createAndValidateRecord(recordHeader, location, variableBuffer);
     }
 

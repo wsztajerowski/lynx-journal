@@ -5,12 +5,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
 import static java.nio.file.Files.createTempFile;
 import static org.assertj.core.api.Assertions.assertThat;
-import static pl.wsztajerowski.journal.FilesTestUtils.*;
+import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
+import static pl.wsztajerowski.journal.FilesTestUtils.wrapInJournalByteBuffer;
+import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
 class ReadYourOwnWritesTest {
     private Journal sut;
@@ -35,7 +36,7 @@ class ReadYourOwnWritesTest {
         // when
         var location = sut.write(buffer);
         // and
-        var readContentBuffer = sut.read(ByteBuffer.allocate(64), location);
+        var readContentBuffer = sut.read(createJournalByteBuffer(64), location);
 
         // then
         var readContent = readAsUtf8(readContentBuffer);
@@ -55,9 +56,9 @@ class ReadYourOwnWritesTest {
         var secondVariableLocation = sut.write(wrapInJournalByteBuffer(secondVariableContent));
         var thirdVariableLocation = sut.write(wrapInJournalByteBuffer(thirdVariableContent));
         // and
-        var secondReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), secondVariableLocation));
-        var firstReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), firstVariableLocation));
-        var thirdReadContent = readAsUtf8(sut.read(ByteBuffer.allocate(64), thirdVariableLocation));
+        var secondReadContent = readAsUtf8(sut.read(createJournalByteBuffer(64), secondVariableLocation));
+        var firstReadContent = readAsUtf8(sut.read(createJournalByteBuffer(64), firstVariableLocation));
+        var thirdReadContent = readAsUtf8(sut.read(createJournalByteBuffer(64), thirdVariableLocation));
 
         // then
         assertThat(String.join(" ", firstReadContent, secondReadContent, thirdReadContent))
