@@ -1,11 +1,13 @@
 package pl.wsztajerowski.journal.records;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
 import pl.wsztajerowski.journal.Location;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.stream.Stream;
@@ -22,6 +24,11 @@ import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJo
 class RecordReadChannelTest {
     private RecordReadChannel sut;
     private Path dataFilePath;
+
+    @BeforeAll
+    static void setup() {
+        Assertions.setMaxStackTraceElementsDisplayed(30);
+    }
 
     @BeforeEach
     void setUp() throws IOException {
@@ -62,7 +69,26 @@ class RecordReadChannelTest {
         // then
         assertThat(exception)
             .isInstanceOf(JournalRuntimeIOException.class)
-            .hasMessageContaining("Read from outside of channel");
+            .hasCauseInstanceOf(EOFException.class)
+            .hasMessageContaining("Corrupted journal file");
+    }
+
+    @Test
+    void read_record_bigger_than_page_size_return_expected_content() throws IOException {
+        // given
+        String content = "7".repeat(1_000_000);
+        long offset = validJournal(dataFilePath)
+            .recordTestDataProvider()
+            .saveVariable(content);
+        var location = new Location(offset);
+        JournalByteBuffer outputBuffer = createJournalByteBuffer(1_000_000);
+
+        // when
+        var record = sut.read(outputBuffer, location);
+
+        // then
+        assertThat(readAsUtf8(record.buffer()))
+            .contains(content);
     }
 
     static Stream<JournalByteBuffer> invalidBuffersSource() {

@@ -16,12 +16,13 @@ import static pl.wsztajerowski.journal.records.Record.createAndValidateRecord;
 import static pl.wsztajerowski.journal.records.RecordHeader.*;
 
 public class RecordReadChannel implements AutoCloseable {
-    private final ThreadLocal<ByteBuffer> recordHeaderBuffer;
+    private static final int PAGE_SIZE = 4096;
+    private final ThreadLocal<ByteBuffer> threadLocalBuffer;
     private final FileChannel fileChannel;
 
     RecordReadChannel(FileChannel fileChannel) {
         this.fileChannel = fileChannel;
-        recordHeaderBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(recordHeaderLength()));
+        threadLocalBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(PAGE_SIZE));
     }
 
     public static RecordReadChannel open(Path journalPath) {
@@ -38,22 +39,58 @@ public class RecordReadChannel implements AutoCloseable {
     }
 
     public Record read(JournalByteBuffer destination, Location location) {
-        var recordHeader = readRecordHeader(location);
-        validateDestinationBufferSpace(destination.getContentBuffer(), recordHeader);
-        var variableBuffer = readFromFileChannel(destination.getContentBuffer(), location.offset() + recordHeaderLength(), recordHeader.variableSize());
-        return createAndValidateRecord(recordHeader, location, variableBuffer);
+        ByteBuffer localByteBuffer = threadLocalBuffer.get();
+        localByteBuffer.clear();
+        int readBytes = readPage(localByteBuffer, location.offset());
+        var recordHeader = readRecordHeader(localByteBuffer, readBytes);
+        ByteBuffer targetContentBuffer = destination.getContentBuffer();
+        validateDestinationBufferSpaceAndSetLimit(targetContentBuffer, recordHeader);
+
+        long offset = location.offset();
+        int variableBytesToRead = recordHeader.variableSize();
+        readBytes -= recordHeaderLength();
+        targetContentBuffer.mark();
+        do {
+            boolean readIncompletePageWithRecordHeader = offset == location.offset() && (readBytes != PAGE_SIZE - recordHeaderLength());
+            boolean readIncompletePageWithDataOnly = offset != location.offset() && readBytes != PAGE_SIZE;
+            if ( (readIncompletePageWithRecordHeader || readIncompletePageWithDataOnly) && (readBytes < variableBytesToRead) ) {
+                throw new JournalRuntimeIOException("Corrupted journal file - cannot read " + (variableBytesToRead - readBytes) + " bytes");
+            }
+            int numberOfBytesToCopy = Math.min(readBytes, variableBytesToRead);
+            targetContentBuffer.put(targetContentBuffer.position(), localByteBuffer, localByteBuffer.position(), numberOfBytesToCopy);
+            targetContentBuffer.position(targetContentBuffer.position() + numberOfBytesToCopy);
+            localByteBuffer.clear();
+            variableBytesToRead -= readBytes;
+            offset += PAGE_SIZE;
+        } while (variableBytesToRead > 0 && (readBytes = readPage(localByteBuffer, offset)) > 0);
+        if (variableBytesToRead > 0) {
+            throw new JournalRuntimeIOException("Corrupted journal file - cannot read " + variableBytesToRead + " bytes");
+        }
+        targetContentBuffer.reset();
+        return createAndValidateRecord(recordHeader, location, targetContentBuffer);
     }
 
-    private static void validateDestinationBufferSpace(ByteBuffer destination, RecordHeader recordHeader) {
-        if (destination.remaining() < recordHeader.variableSize()) {
-            throw new NotEnoughSpaceInBufferException(destination.remaining(), recordHeader.variableSize());
+    private int readPage(ByteBuffer targetBuffer, long offset) {
+        try {
+            int readBytes = fileChannel.read(targetBuffer, offset);
+            targetBuffer.flip();
+            return readBytes;
+        } catch (IOException e) {
+            throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
         }
     }
 
-    private RecordHeader readRecordHeader(Location location) {
-        ByteBuffer localByteBuffer = recordHeaderBuffer.get();
-        localByteBuffer.clear();
-        var headerBuffer = readFromFileChannel(localByteBuffer, location.offset(), recordHeaderLength());
+    private static void validateDestinationBufferSpaceAndSetLimit(ByteBuffer destination, RecordHeader recordHeader) {
+        if (destination.remaining() < recordHeader.variableSize()) {
+            throw new NotEnoughSpaceInBufferException(destination.remaining(), recordHeader.variableSize());
+        }
+        destination.limit(destination.position() + recordHeader.variableSize());
+    }
+
+    private RecordHeader readRecordHeader(ByteBuffer headerBuffer, int readBytes) {
+        if (readBytes < recordHeaderLength()) {
+            throw new JournalRuntimeIOException("Corrupted journal file - number of read bytes is smaller than record header size", new EOFException("Read from outside of channel"));
+        }
         int prefix = headerBuffer.getInt();
         if (prefix != RECORD_PREFIX) {
             throw invalidRecordHeaderPrefix(prefix);
@@ -61,20 +98,4 @@ public class RecordReadChannel implements AutoCloseable {
         return createAndValidateHeader(headerBuffer.getInt(), headerBuffer.getInt());
     }
 
-    private ByteBuffer readFromFileChannel(ByteBuffer buffer, long offset, int expectedSize) {
-        try {
-            var bufferCopy = buffer
-                .mark()
-                .limit(buffer.position() + expectedSize);
-            var readBytes = fileChannel.read(bufferCopy, offset);
-            if (readBytes == -1) {
-                throw new JournalRuntimeIOException("Read from outside of channel", new EOFException());
-            } else if (readBytes != expectedSize) {
-                throw new JournalRuntimeIOException("Number of read bytes from channel (%d) is different than expected (%d)".formatted(readBytes, expectedSize));
-            }
-            return buffer.reset();
-        } catch (IOException e) {
-            throw new JournalRuntimeIOException("Error during reading from fileChannel", e);
-        }
-    }
 }
