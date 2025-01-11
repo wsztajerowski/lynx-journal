@@ -11,7 +11,9 @@ public class ChecksumCalculator {
 
     public static int computeChecksum(ByteBuffer buffer) {
         Checksum checksum = newChecksum();
-        checksum.update(buffer.duplicate());
+        buffer.mark();
+        checksum.update(buffer);
+        buffer.reset();
         return Long.valueOf(checksum.getValue()).intValue();
     }
 
