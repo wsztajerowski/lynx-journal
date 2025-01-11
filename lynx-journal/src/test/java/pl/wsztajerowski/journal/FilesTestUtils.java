@@ -1,8 +1,10 @@
 package pl.wsztajerowski.journal;
 
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
+import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -11,9 +13,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static pl.wsztajerowski.journal.BytesTestUtils.intToBytes;
 
 public class FilesTestUtils {
-    public static ByteBuffer wrapInByteBuffer(String content) {
-        return ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8));
-    }
     public static JournalByteBuffer wrapInJournalByteBuffer(String content) {
         byte[] contentBytes = content.getBytes(UTF_8);
         JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(contentBytes.length);

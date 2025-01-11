@@ -3,11 +3,10 @@ package pl.wsztajerowski.journal.records;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import pl.wsztajerowski.journal.Location;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
+import pl.wsztajerowski.journal.Location;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
@@ -16,7 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchException;
 import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
 import static pl.wsztajerowski.journal.JournalTestDataProvider.validJournal;
-import static pl.wsztajerowski.journal.records.ByteBufferFactory.newByteBuffer;
+import static pl.wsztajerowski.journal.records.ByteBufferFactory.newJournalBuffer;
+import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class RecordReadChannelTest {
@@ -43,7 +43,7 @@ class RecordReadChannelTest {
         var location = new Location(offset);
 
         // when
-        Exception exception = catchException(() -> sut.read(ByteBuffer.allocate(256), location));
+        Exception exception = catchException(() -> sut.read(createJournalByteBuffer(64), location));
 
         // then
         assertThat(exception)
@@ -57,7 +57,7 @@ class RecordReadChannelTest {
         Location location = new Location(1000);
 
         // when
-        Exception exception = catchException(() -> sut.read(ByteBuffer.allocate(64), location));
+        Exception exception = catchException(() -> sut.read(createJournalByteBuffer(64), location));
 
         // then
         assertThat(exception)
@@ -65,17 +65,17 @@ class RecordReadChannelTest {
             .hasMessageContaining("Read from outside of channel");
     }
 
-    static Stream<ByteBuffer> invalidBuffersSource() {
+    static Stream<JournalByteBuffer> invalidBuffersSource() {
         return Stream.of(
-            newByteBuffer(0, 2, 2),
-            newByteBuffer(10, 15, 20),
-            newByteBuffer(15, 20, 20)
+            newJournalBuffer(0, 2, 2),
+            newJournalBuffer(10, 15, 20),
+            newJournalBuffer(15, 20, 20)
         );
     }
 
     @ParameterizedTest
     @MethodSource("invalidBuffersSource")
-    void read_record_providing_buffer_without_enough_space_throws_exception(ByteBuffer userBuffer) throws IOException {
+    void read_record_providing_buffer_without_enough_space_throws_exception(JournalByteBuffer userBuffer) throws IOException {
         // given
         var variableOffset = validJournal(dataFilePath)
             .recordTestDataProvider()
@@ -89,18 +89,18 @@ class RecordReadChannelTest {
             .isInstanceOf(NotEnoughSpaceInBufferException.class);
     }
 
-    static Stream<ByteBuffer> validReadBuffersSource(){
+    static Stream<JournalByteBuffer> validReadBuffersSource(){
         return Stream.of(
-            ByteBuffer.allocate(64),
-            ByteBuffer.allocate(64).limit(32),
-            ByteBuffer.allocate(64).position(16),
-            ByteBuffer.allocate(64).position(16).limit(32)
+            newJournalBuffer(0, 64, 64),
+            newJournalBuffer(0, 32, 64),
+            newJournalBuffer(16, 64, 64),
+            newJournalBuffer(16, 32, 64)
         );
     }
 
     @ParameterizedTest
     @MethodSource("validReadBuffersSource")
-    void read_record_provided_bigger_buffer_succeed(ByteBuffer outputBuffer) throws IOException {
+    void read_record_provided_bigger_buffer_succeed(JournalByteBuffer outputBuffer) throws IOException {
         // given
         long offset = validJournal(dataFilePath)
             .recordTestDataProvider()

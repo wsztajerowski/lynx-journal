@@ -1,6 +1,4 @@
-package pl.wsztajerowski.journal;
-
-import pl.wsztajerowski.journal.records.RecordHeader;
+package pl.wsztajerowski.journal.records;
 
 import java.nio.ByteBuffer;
 

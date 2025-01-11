@@ -3,9 +3,10 @@ package pl.wsztajerowski.journal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
+import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import static java.nio.file.Files.createTempFile;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
+import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
 class MultiProducersMultiConsumersConcurrencyTest {
     private static final int PRODUCER_THREADS = 4;
@@ -63,9 +65,9 @@ class MultiProducersMultiConsumersConcurrencyTest {
         return () -> {
             Location location = null;
             try {
-                ByteBuffer buffer = ByteBuffer.allocate(32);
+                JournalByteBuffer buffer = createJournalByteBuffer(32);
                 while (readsCounter.incrementAndGet() < iterations) {
-                    buffer.clear();
+                    buffer.getContentBuffer().clear();
                     location = locationQueue.poll(100, TimeUnit.SECONDS);
                     var variable = sut.read(buffer, location);
                     sum.addAndGet(variable.getInt());

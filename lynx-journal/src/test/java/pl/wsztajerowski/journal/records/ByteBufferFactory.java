@@ -1,11 +1,11 @@
 package pl.wsztajerowski.journal.records;
 
-import java.nio.ByteBuffer;
-
 public class ByteBufferFactory {
-    public static ByteBuffer newByteBuffer(int position, int limit, int capacity) {
-        return ByteBuffer.allocate(capacity)
+    public static JournalByteBuffer newJournalBuffer(int position, int limit, int capacity) {
+        JournalByteBuffer buffer = JournalByteBufferFactory.createJournalByteBuffer(capacity);
+        buffer.getContentBuffer()
             .position(position)
             .limit(limit);
+        return buffer;
     }
 }
