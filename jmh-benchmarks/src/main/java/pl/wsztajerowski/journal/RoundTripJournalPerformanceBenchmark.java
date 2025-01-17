@@ -2,7 +2,6 @@ package pl.wsztajerowski.journal;
 
 import org.openjdk.jmh.annotations.*;
 import pl.wsztajerowski.journal.records.JournalByteBuffer;
-import pl.wsztajerowski.journal.records.Record;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,7 +40,7 @@ public class RoundTripJournalPerformanceBenchmark {
     @Benchmark
     @GroupThreads(5)
     @Group("journal_roundtrip")
-    public Record readYourWrite(ThreadScopeState threadScopeState) {
+    public ByteBuffer readYourWrite(ThreadScopeState threadScopeState) {
         JournalByteBuffer buffer = threadScopeState.buffer;
         ByteBuffer input = buffer.getContentBuffer();
         input.clear();
@@ -51,7 +50,7 @@ public class RoundTripJournalPerformanceBenchmark {
             .write(buffer);
         input.clear();
         return journal
-            .readRecord(buffer, location);
+            .read(buffer, location);
     }
 
 }
