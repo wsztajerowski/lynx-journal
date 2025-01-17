@@ -1,7 +1,8 @@
 package pl.wsztajerowski.journal;
 
-import pl.wsztajerowski.journal.records.Record;
-import pl.wsztajerowski.journal.records.*;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
+import pl.wsztajerowski.journal.records.RecordReadChannel;
+import pl.wsztajerowski.journal.records.RecordWriteChannel;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -10,27 +11,33 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
+import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
 public class Journal implements AutoCloseable {
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
     static final int JOURNAL_PREFIX = 0xCAFEBABE;
     static final int SCHEMA_VERSION_V1 = 0x0FF1CE01;
     static final List<Integer> SUPPORTED_SCHEMA_VERSIONS = List.of(SCHEMA_VERSION_V1);
+
     private final RecordReadChannel readChannel;
     private final RecordWriteChannel writeChannel;
 
     private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor();
-    private final BlockingQueue<RecordWriteTask> writingQueue;
+    private final ConcurrentNavigableMap<Long, ByteBuffer> writingQueue;
+    private final AtomicLong virtualPosition;
 
-    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, BlockingQueue<RecordWriteTask> writingQueue) {
+    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, ConcurrentNavigableMap<Long, ByteBuffer> writingQueue, long initJournalFilePosition) {
         this.readChannel = readChannel;
         this.writeChannel = writeChannel;
         this.writingQueue = writingQueue;
         writeChannelExecutor.submit(writeChannel);
+        virtualPosition = new AtomicLong(initJournalFilePosition);
     }
 
     static int journalHeaderLength() {
@@ -42,12 +49,12 @@ public class Journal implements AutoCloseable {
             // FIXME: FileChannel.open() with StandardOption.CREATE throws NoSuchFileException
             if (Files.notExists(path)) {
                 Files.createFile(path);
-                return initJournal(path);
+                return createEmptyJournal(path);
             }
 
             long journalFileSize = Files.size(path);
             if (truncateFile || journalFileSize == 0) {
-                return initJournal(path);
+                return createEmptyJournal(path);
             }
 
             if (journalFileSize > 0 && journalFileSize < journalHeaderLength()) {
@@ -72,18 +79,23 @@ public class Journal implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        BlockingQueue<RecordWriteTask> writingQueue = new LinkedBlockingQueue<>();
-        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path, writingQueue), writingQueue);
+        return initJournal(path);
     }
 
-    private static Journal initJournal(Path path) {
+    private static Journal createEmptyJournal(Path path) {
         try {
             Files.write(path, toByteArray(Journal.JOURNAL_PREFIX, Journal.SCHEMA_VERSION_V1));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        BlockingQueue<RecordWriteTask> writingQueue = new LinkedBlockingQueue<>();
-        return new Journal(RecordReadChannel.open(path), RecordWriteChannel.open(path, writingQueue), writingQueue);
+        return initJournal(path);
+    }
+
+    private static Journal initJournal(Path path) {
+        ConcurrentNavigableMap<Long, ByteBuffer> writingQueue = new ConcurrentSkipListMap<>();
+        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, writingQueue);
+        long initJournalFilePosition = recordWriteChannel.getCurrentPosition();
+        return new Journal(RecordReadChannel.open(path), recordWriteChannel, writingQueue, initJournalFilePosition);
     }
 
     public void close() throws IOException {
@@ -105,21 +117,33 @@ public class Journal implements AutoCloseable {
         }
     }
 
-    public Record readRecord(JournalByteBuffer destination, Location location) {
-        return readChannel.read(destination, location);
+    public ByteBuffer read(JournalByteBuffer destination, Location location) {
+        while (writingQueue.containsKey(location.offset())) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new JournalException(e);
+            }
+        }
+        return readChannel.read(destination, location).buffer();
     }
 
-    public ByteBuffer read(JournalByteBuffer destination, Location location) {
-        return readRecord(destination, location)
-            .buffer();
+    public ByteBuffer readAsync(JournalByteBuffer destination, Location location) {
+        return Optional.ofNullable(writingQueue.get(location.offset()))
+            .map(buffer -> {
+                ByteBuffer contentBuffer = destination.getContentBuffer();
+                contentBuffer.put(contentBuffer.position(),buffer, recordHeaderLength(), buffer.limit()-recordHeaderLength());
+                contentBuffer.limit(buffer.limit()-recordHeaderLength());
+                return contentBuffer;
+            })
+            .orElseGet(() -> readChannel.read(destination, location).buffer());
     }
 
     public Location write(JournalByteBuffer buffer) {
-        CompletableFuture<Location> future = new CompletableFuture<>();
-        RecordWriteTask task = new RecordWriteTask(buffer.getWritableBuffer(), future);
-        while (!writingQueue.offer(task)) {
-            Thread.onSpinWait();
-        }
-        return future.join();
+        ByteBuffer writableBuffer = buffer.getWritableBuffer();
+        int remaining = writableBuffer.remaining();
+        long bufferPosition = virtualPosition.getAndAdd(remaining);
+        writingQueue.put(bufferPosition, writableBuffer);
+        return new Location(bufferPosition);
     }
 }
