@@ -4,7 +4,6 @@ import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Control;
 import pl.wsztajerowski.journal.records.JournalByteBuffer;
-import pl.wsztajerowski.journal.records.Record;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -45,8 +44,8 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     @Benchmark
     @GroupThreads(5)
     @Group("journal_mpmc")
-    public Location produceElement(ThreadScopeState threadScopeState) {
-        JournalByteBuffer buffer = threadScopeState.buffer;
+    public Location produceElement() {
+        JournalByteBuffer buffer = createJournalByteBuffer(4);
         ByteBuffer input = buffer.getContentBuffer();
         input.clear();
         input.putInt(41);
@@ -60,7 +59,7 @@ public class ReadLastRecordJournalPerformanceBenchmark {
     @Benchmark
     @GroupThreads(5)
     @Group("journal_mpmc")
-    public Record consumeElement(ThreadScopeState threadScopeState, Control control) {
+    public ByteBuffer consumeElement(ThreadScopeState threadScopeState, Control control) {
         var output = threadScopeState.buffer;
         output.getContentBuffer().clear();
         Location location = null;
@@ -71,7 +70,7 @@ public class ReadLastRecordJournalPerformanceBenchmark {
             return null;
         }
         try {
-            return journal.readRecord(output, location);
+            return journal.readAsync(output, location);
         } catch (JournalException e) {
             System.out.printf("Reading record %s throws an exception. Data file: %s %n", location, dataFilePath);
             throw e;

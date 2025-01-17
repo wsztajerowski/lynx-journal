@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.nio.file.Files.createTempFile;
 import static java.util.concurrent.Executors.newFixedThreadPool;
@@ -37,12 +37,12 @@ class MultiProducersMultiConsumersConcurrencyTest {
     }
 
     @Test
-    public void testConcurrentWriteAndRead() throws InterruptedException {
+    public void testConcurrentWriteAndRead() throws InterruptedException, ExecutionException, TimeoutException {
         BlockingQueue<Location> locationQueue = new LinkedBlockingQueue<>();
         AtomicInteger writesCounter = new AtomicInteger(0);
         AtomicInteger readsCounter = new AtomicInteger(0);
-        AtomicInteger sum = new AtomicInteger(0);
-        int iterations = 1_000;
+        AtomicLong sum = new AtomicLong(0);
+        int iterations = 1_000_000;
         try (ExecutorService executor = newFixedThreadPool(PRODUCER_THREADS + CONSUMER_THREADS)) {
             for (int i = 0; i < PRODUCER_THREADS; i++) {
                 executor.submit(createProducer(iterations, locationQueue, writesCounter));
@@ -52,16 +52,15 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
             }
             for (Future<?> future : futures) {
-                future.get(100, TimeUnit.SECONDS); // Blocks until the task is completed
+                future.get(2, TimeUnit.SECONDS); // Blocks until the task is completed
             }
-        } catch (ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
         }
+        long expectedSum = Long.valueOf(iterations)*(iterations-1)/2;
         assertThat(sum)
-            .hasValue(iterations*(iterations-1)/2);
+            .hasValue(expectedSum);
     }
 
-    private Runnable createConsumer(int iterations, BlockingQueue<Location> locationQueue, AtomicInteger readsCounter, AtomicInteger sum) {
+    private Runnable createConsumer(int iterations, BlockingQueue<Location> locationQueue, AtomicInteger readsCounter, AtomicLong sum) {
         return () -> {
             Location location = null;
             try {
@@ -69,18 +68,19 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 while (readsCounter.incrementAndGet() < iterations) {
                     buffer.getContentBuffer().clear();
                     location = locationQueue.poll(100, TimeUnit.SECONDS);
-                    var variable = sut.read(buffer, location);
+                    var variable = sut.readAsync(buffer, location);
                     sum.addAndGet(variable.getInt());
                 }
+                System.out.println("Last read on thread: " + Thread.currentThread().getName() + " : " + location);
             } catch (Exception e){
                 e.printStackTrace();
-                String collected = locationQueue
-                    .stream()
-                    .map(Location::offset)
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(",", "Queue[", "]"));
-                System.out.println(location + ": " + e.getMessage()+ ": " + collected);
-                throw new RuntimeException(e);
+//                String collected = locationQueue
+//                    .stream()
+//                    .map(Location::offset)
+//                    .map(String::valueOf)
+//                    .collect(Collectors.joining(",", "Queue[", "]"));
+//                System.out.println(location + ": " + e.getMessage()+ ": " + collected);
+                System.exit(1);
             }
         };
     }
@@ -88,11 +88,10 @@ class MultiProducersMultiConsumersConcurrencyTest {
     private Runnable createProducer(int iterations, Queue<Location> locationQueue, AtomicInteger writesCounter) {
         return () -> {
             try {
-                JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(128);
                 int iteration;
                 while ((iteration = writesCounter.incrementAndGet()) < iterations) {
+                    JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(128);
                     var buffer = journalByteBuffer.getContentBuffer();
-                    buffer.clear();
                     buffer.putInt(iteration);
                     buffer.flip();
                     var location = sut.write(journalByteBuffer);
