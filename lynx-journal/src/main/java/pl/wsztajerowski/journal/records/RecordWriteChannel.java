@@ -79,7 +79,8 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
                     }
 //                System.out.println("Wrote " + writtenBytes + " bytes to " + lastPosition);
                     recordsToWrite.keySet().removeIf( key -> true );
-//                System.out.println("Number of waiting writes: " + queue.size());
+                    lastWrittenPosition = fileChannel.position();
+//                System.out.println("Number of waiting writes after removing: " + queue.size());
                 } catch (Exception e) {
                     e.printStackTrace();
                     Thread.currentThread().interrupt();

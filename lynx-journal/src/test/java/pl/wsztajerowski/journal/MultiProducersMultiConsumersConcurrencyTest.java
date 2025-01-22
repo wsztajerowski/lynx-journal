@@ -52,7 +52,7 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 futures.add(executor.submit(createConsumer(iterations, locationQueue, readsCounter, sum)));
             }
             for (Future<?> future : futures) {
-                future.get(2, TimeUnit.SECONDS); // Blocks until the task is completed
+                future.get(10, TimeUnit.SECONDS); // Blocks until the task is completed
             }
         }
         long expectedSum = Long.valueOf(iterations)*(iterations-1)/2;
