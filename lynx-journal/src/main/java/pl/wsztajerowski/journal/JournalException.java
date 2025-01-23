@@ -1,7 +1,5 @@
 package pl.wsztajerowski.journal;
 
-import java.io.IOException;
-
 public class JournalException extends RuntimeException {
     public JournalException(String message) {
         super(message);
@@ -11,7 +9,7 @@ public class JournalException extends RuntimeException {
         super(message, cause);
     }
 
-    public JournalException(IOException cause) {
+    public JournalException(Exception cause) {
         super(cause);
     }
 }
