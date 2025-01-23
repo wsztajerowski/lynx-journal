@@ -40,13 +40,13 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
 
     public void run() {
         try {
-            long lastWrittenPosition = fileChannel.position();
+            long lastWrittenPosition = fileChannel.position() + WRITE_CHUNK_SIZE;
             while (!Thread.currentThread().isInterrupted() && !isClosed.get()) {
                 if (queue.isEmpty()) {
                     Thread.onSpinWait();
                     continue;
                 }
-                Long lastPositionToWrite = queue.lowerKey(lastWrittenPosition + WRITE_CHUNK_SIZE);
+                Long lastPositionToWrite = queue.lowerKey(lastWrittenPosition);
 //                Long lastPosition = queue.lastKey();
                 var recordsToWrite = queue.headMap(lastPositionToWrite, true);
 //            System.out.println("Try writing " + recordsToWrite.size() + " records from queue");
@@ -79,7 +79,7 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
                     }
 //                System.out.println("Wrote " + writtenBytes + " bytes to " + lastPosition);
                     recordsToWrite.keySet().removeIf( key -> true );
-                    lastWrittenPosition = fileChannel.position();
+                    lastWrittenPosition += WRITE_CHUNK_SIZE;
 //                System.out.println("Number of waiting writes after removing: " + queue.size());
                 } catch (Exception e) {
                     e.printStackTrace();
