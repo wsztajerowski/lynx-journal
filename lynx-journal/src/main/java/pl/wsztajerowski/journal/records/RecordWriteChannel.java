@@ -47,22 +47,16 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
                     continue;
                 }
                 Long lastPositionToWrite = queue.lowerKey(lastWrittenPosition);
-//                Long lastPosition = queue.lastKey();
                 var recordsToWrite = queue.headMap(lastPositionToWrite, true);
-//            System.out.println("Try writing " + recordsToWrite.size() + " records from queue");
-//            System.out.println("Virtual locations: " + recordsToWrite.keySet().stream().toList());
                 if (recordsToWrite.isEmpty()) {
                     Thread.onSpinWait();
+                    continue;
                 }
                 try {
                     ByteBuffer[] buffers = recordsToWrite.values().toArray(new ByteBuffer[recordsToWrite.size()]);
                     int totalBytesToWrite = 0;
-//                int emptyBuffers = 0;
                     for (ByteBuffer buffer : buffers) {
                         totalBytesToWrite += buffer.remaining();
-//                    if (!buffer.hasRemaining()) {
-//                        emptyBuffers++;
-//                    }
                     }
 //                System.out.println("Empty buffers: " + emptyBuffers);
 //                System.out.println("Expecting write " + expectedBytes + " bytes to " + recordsToWrite.firstKey());
@@ -77,10 +71,10 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
                     if (totalBytesWritten != totalBytesToWrite) {
                         throw new JournalRuntimeIOException("Written bytes mismatch - expected: " + totalBytesToWrite + ", actual: " + totalBytesWritten);
                     }
-//                System.out.println("Wrote " + writtenBytes + " bytes to " + lastPosition);
+
                     recordsToWrite.keySet().removeIf( key -> true );
                     lastWrittenPosition += WRITE_CHUNK_SIZE;
-//                System.out.println("Number of waiting writes after removing: " + queue.size());
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     Thread.currentThread().interrupt();
