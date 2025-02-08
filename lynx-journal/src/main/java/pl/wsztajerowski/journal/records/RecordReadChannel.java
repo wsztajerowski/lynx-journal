@@ -73,6 +73,9 @@ public class RecordReadChannel implements AutoCloseable {
     private int readPage(ByteBuffer targetBuffer, long offset) {
         try {
             int readBytes = fileChannel.read(targetBuffer, offset);
+            if (readBytes == -1) {
+                throw new JournalRuntimeIOException("Cannot read Page with offset " + offset, new EOFException());
+            }
             targetBuffer.flip();
             return readBytes;
         } catch (IOException e) {

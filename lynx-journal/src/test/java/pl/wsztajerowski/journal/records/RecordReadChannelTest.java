@@ -70,7 +70,7 @@ class RecordReadChannelTest {
         assertThat(exception)
             .isInstanceOf(JournalRuntimeIOException.class)
             .hasCauseInstanceOf(EOFException.class)
-            .hasMessageContaining("Corrupted journal file");
+            .hasMessageContaining("Cannot read Page with offset 1000");
     }
 
     @Test
