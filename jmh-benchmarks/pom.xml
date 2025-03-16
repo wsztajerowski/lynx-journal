@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>pl.wsztajerowski</groupId>
-            <artifactId>lynx-journal</artifactId>
+            <artifactId>journal</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

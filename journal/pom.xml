@@ -10,7 +10,7 @@
         <version>0.0.0-semantically-released</version>
     </parent>
 
-    <artifactId>lynx-journal</artifactId>
+    <artifactId>journal</artifactId>
     <packaging>jar</packaging>
     <name>Lynx Journal</name>
 
