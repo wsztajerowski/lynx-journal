@@ -166,6 +166,6 @@
     </build>
     <modules>
         <module>jmh-benchmarks</module>
-        <module>lynx-journal</module>
+        <module>journal</module>
     </modules>
 </project>
