@@ -38,8 +38,9 @@ display_usage() {
 PARAMETERS_START=0
 for ARG in "$@"; do
     if [[ $PARAMETERS_START -eq 1 ]]; then
-        ESCAPED_ARG=$(printf '%q' "$ARG")
-        BENCHMARK_PARAMETERS+=("$ESCAPED_ARG")
+#        ESCAPED_ARG=$(printf '%q' "$ARG")
+#        echo ">>" $ESCAPED_ARG "<<"
+        BENCHMARK_PARAMETERS+=('"'$ARG'"')
         continue
     fi
 
@@ -123,42 +124,42 @@ if [[ $? -ne 0 ]]; then
     log ERROR "Failed to trigger GitHub Actions workflow."
     exit 1
 fi
-#
-## Step 4: Wait for workflow to finish
-#sleep 5
-#RUN_ID=$(gh run list --json databaseId --repo "$BENCHMARK_REPO" --workflow=benchmark-runner.yml --limit 1 -q  '.[0].databaseId')
-#log INFO "Workflow run successfully with RUN_ID: $RUN_ID"
-#$SCRIPT_DIR/wait-for-gha-run.sh -id $RUN_ID
-#
-## Step 5: Check benchmarks results
-#QUERY="db.jmh_benchmarks.find(
-#  {'_id.requestId': '$REQUEST_ID'},
-#  {'_id': 0,
-#   'jmhResult.benchmark': 1,
-#   'jmhResult.primaryMetric.score': 1,
-#   'jmhResult.primaryMetric.scoreUnit': 1
-#  }
-#)
-#.forEach(function(doc) {
-#   print(doc.jmhResult.benchmark.split('.').pop() + '\\t' + Math.floor(doc.jmhResult.primaryMetric.score).toLocaleString('pl-PL') + '\\t' + doc.jmhResult.primaryMetric.scoreUnit);
-#});"
-#
-## Check if BENCHMARK_DB_CONNECTION_STRING environment variable is defined
-#if [ -z "$BENCHMARK_DB_CONNECTION_STRING" ]; then
-#  # If the environment variable is not defined, print the query to the console
-#  log INFO "Environment variable BENCHMARK_DB_CONNECTION_STRING is not defined."
-#  log INFO "To see results set BENCHMARK_DB_CONNECTION_STRING to BaaS MongoDB's connection string"
-#  log INFO "Generated MongoDB Query:"
-#  echo "$QUERY"
-#else
-#  # If the environment variable is defined, execute the query using mongosh
-#  log INFO "Querying benchmark results..."
-#  mongosh "$BENCHMARK_DB_CONNECTION_STRING" --eval "$QUERY" |
-#   (
-#     # Print header
-#     echo -e "BENCHMARK\\tSCORE\\tUNIT" && cat
-#   ) | column -t -s $'\t'
-#fi
-#
-#echo "Script completed successfully."
-#echo "Benchmark outputs: https://eu-central-1.console.aws.amazon.com/s3/buckets/$S3_BUCKET?prefix=$RESULT_PATH/"
+
+# Step 4: Wait for workflow to finish
+sleep 5
+RUN_ID=$(gh run list --json databaseId --repo "$BENCHMARK_REPO" --workflow=benchmark-runner.yml --limit 1 -q  '.[0].databaseId')
+log INFO "Workflow run successfully with RUN_ID: $RUN_ID"
+$SCRIPT_DIR/wait-for-gha-run.sh -id $RUN_ID
+
+# Step 5: Check benchmarks results
+QUERY="db.jmh_benchmarks.find(
+  {'_id.requestId': '$REQUEST_ID'},
+  {'_id': 0,
+   'jmhResult.benchmark': 1,
+   'jmhResult.primaryMetric.score': 1,
+   'jmhResult.primaryMetric.scoreUnit': 1
+  }
+)
+.forEach(function(doc) {
+   print(doc.jmhResult.benchmark.split('.').pop() + '\\t' + Math.floor(doc.jmhResult.primaryMetric.score).toLocaleString('pl-PL') + '\\t' + doc.jmhResult.primaryMetric.scoreUnit);
+});"
+
+# Check if BENCHMARK_DB_CONNECTION_STRING environment variable is defined
+if [ -z "$BENCHMARK_DB_CONNECTION_STRING" ]; then
+  # If the environment variable is not defined, print the query to the console
+  log INFO "Environment variable BENCHMARK_DB_CONNECTION_STRING is not defined."
+  log INFO "To see results set BENCHMARK_DB_CONNECTION_STRING to BaaS MongoDB's connection string"
+  log INFO "Generated MongoDB Query:"
+  echo "$QUERY"
+else
+  # If the environment variable is defined, execute the query using mongosh
+  log INFO "Querying benchmark results..."
+  mongosh "$BENCHMARK_DB_CONNECTION_STRING" --eval "$QUERY" |
+   (
+     # Print header
+     echo -e "BENCHMARK\\tSCORE\\tUNIT" && cat
+   ) | column -t -s $'\t'
+fi
+
+echo "Script completed successfully."
+echo "Benchmark outputs: https://eu-central-1.console.aws.amazon.com/s3/buckets/$S3_BUCKET?prefix=$RESULT_PATH/"
