@@ -167,5 +167,6 @@
     <modules>
         <module>jmh-benchmarks</module>
         <module>journal</module>
+        <module>mpsc-framework</module>
     </modules>
 </project>
