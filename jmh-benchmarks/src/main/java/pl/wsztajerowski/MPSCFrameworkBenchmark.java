@@ -2,13 +2,11 @@ package pl.wsztajerowski;
 
 import org.openjdk.jmh.annotations.*;
 
-import java.io.IOException;
-
 @State(Scope.Benchmark)
 public class MPSCFrameworkBenchmark {
     MPSCFramework<Integer, Integer> framework;
     @Setup
-    public void setup() throws IOException {
+    public void setup() {
         framework = MPSCFramework.create(wrappers -> {
             for (Wrapper<Integer, Integer> wrapper : wrappers) {
                 wrapper.response = wrapper.request + 1;
