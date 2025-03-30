@@ -33,7 +33,7 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
             while (consumerAlive.get()) {
 
                 var bufferBatch = currentBatchReference.get();
-                if (!bufferBatch.content.isEmpty()) {
+                if (!bufferBatch.isBatchEmpty()) {
 //                    System.out.println("Consuming " + bufferBatch.content.size() + " buffers");
                     lock.writeLock().lock();
                     try {
