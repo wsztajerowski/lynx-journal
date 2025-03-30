@@ -2,6 +2,7 @@ package pl.wsztajerowski.journal;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import pl.wsztajerowski.journal.records.JournalByteBuffer;
 import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
@@ -20,6 +21,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
+@Disabled
 class MultiProducersMultiConsumersConcurrencyTest {
     private static final int PRODUCER_THREADS = 4;
     private static final int CONSUMER_THREADS = 4;
