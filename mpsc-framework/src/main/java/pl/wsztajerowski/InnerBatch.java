@@ -1,18 +1,19 @@
 package pl.wsztajerowski;
 
-import java.util.concurrent.ArrayBlockingQueue;
+import org.jctools.queues.MpscArrayQueue;
+
 import java.util.concurrent.CountDownLatch;
 
 public class InnerBatch<REQ, RES> {
     static int BATCH_SIZE = 1024; // Define batch size
-     final ArrayBlockingQueue<Wrapper<REQ, RES>> content;
+     final MpscArrayQueue<Wrapper<REQ, RES>> content;
      final CountDownLatch doneSignal;
     private volatile boolean batchFinalized;
 
     InnerBatch() {
         this.doneSignal = new CountDownLatch(1);
         batchFinalized = false;
-        content = new ArrayBlockingQueue<>(BATCH_SIZE);
+        content = new MpscArrayQueue<>(BATCH_SIZE);
     }
 
     public void finalizeBatch() {
