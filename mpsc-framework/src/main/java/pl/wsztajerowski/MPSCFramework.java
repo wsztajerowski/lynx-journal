@@ -4,19 +4,17 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
 class MPSCFramework<REQ, RES> implements AutoCloseable {
 
-    private final AtomicReference<InnerBatch<REQ, RES>> currentBatchReference = new AtomicReference<>(new InnerBatch<>());
+    private volatile InnerBatch<REQ, RES> currentBatchReference = new InnerBatch<>();
     private final ExecutorService consumerExecutor = Executors.newSingleThreadExecutor();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final Consumer<Wrapper<REQ, RES>[]> processor;
-    private final AtomicBoolean consumerAlive = new AtomicBoolean(true);
+    private volatile boolean consumerAlive = true;
 
     MPSCFramework(Consumer<Wrapper<REQ, RES>[]> processor) {
         this.processor = processor;
@@ -29,26 +27,21 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
 
     public MPSCFramework<REQ, RES> startConsumer() {
         consumerExecutor.submit(() -> {
-//            System.out.println("Starting consumer thread");
-            while (consumerAlive.get()) {
-
-                var bufferBatch = currentBatchReference.get();
-                if (!bufferBatch.isBatchEmpty()) {
-//                    System.out.println("Consuming " + bufferBatch.content.size() + " buffers");
+            while (consumerAlive) {
+                var bufferBatch = currentBatchReference;
+                if (!bufferBatch.isBatchEmpty()) { // a co jesli empty?
                     lock.writeLock().lock();
                     try {
-//                        System.out.println("Finalizing batch");
                         bufferBatch.finalizeBatch();
                     } finally {
                         lock.writeLock().unlock();
                     }
-//                    System.out.println("Change batch reference");
-                    currentBatchReference.set(new InnerBatch<>());
-//                    System.out.println("Processing " + bufferBatch.content.size() + " buffers");
+                    currentBatchReference = new InnerBatch<>();
                     processBatch(bufferBatch);
+                } else{
+                    Thread.onSpinWait();
                 }
             }
-//            System.out.println("Consumer stopped");
         });
         return this;
     }
@@ -63,16 +56,14 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
         Wrapper<REQ, RES> wrapper = new Wrapper<>(request);
         while (true) { //lock-free loop
             // cala zabawa z lockami
-            var batch = currentBatchReference.get();
-            var batchFinalized = batch.isBatchFinalized();
+            var batch = currentBatchReference;
 
-            if (!batchFinalized) {
+            if (!batch.isBatchFinalized()) {
                 lock.readLock().lock();
                 // <-- tu OS scheduler może odjebać
                 CountDownLatch doneSignal;
                 try {
-                    batchFinalized = batch.isBatchFinalized();
-                    if (batchFinalized || (doneSignal = batch.offer(wrapper)) == null) {
+                    if (batch.isBatchFinalized() || (doneSignal = batch.offer(wrapper)) == null) {
                         continue;
                     }
                 } finally {
@@ -91,7 +82,7 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        consumerAlive.set(false);
+        consumerAlive = false;
         consumerExecutor.shutdown();
         try {
             if (!consumerExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
@@ -101,5 +92,15 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
             consumerExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    public static void main(String[] args) {
+        MPSCFramework<Integer, Integer> mpsc = MPSCFramework.create(wrappers -> {
+            for (Wrapper<Integer, Integer> wrapper : wrappers) {
+                System.out.println("Consumed: " + wrapper.request);
+                wrapper.response = wrapper.request + 1;
+            }
+        });
+        mpsc.startConsumer();
     }
 }
