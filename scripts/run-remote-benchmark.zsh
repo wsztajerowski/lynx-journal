@@ -148,7 +148,7 @@ QUERY="db.jmh_benchmarks.find(
 if [ -z "$BENCHMARK_DB_CONNECTION_STRING" ]; then
   # If the environment variable is not defined, print the query to the console
   log INFO "Environment variable BENCHMARK_DB_CONNECTION_STRING is not defined."
-  log INFO "To see results set BENCHMARK_DB_CONNECTION_STRING to BaaS MongoDB's connection string"
+  log INFO "To see results, set BENCHMARK_DB_CONNECTION_STRING to BaaS MongoDB's connection string"
   log INFO "Generated MongoDB Query:"
   echo "$QUERY"
 else
