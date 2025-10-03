@@ -1,10 +1,10 @@
 package pl.wsztajerowski;
 
-class Wrapper<REQ, RES> {
+class Exchange<REQ, RES> {
     public REQ request;
     public RES response;
 
-    public Wrapper(REQ request) {
+    public Exchange(REQ request) {
         this.response = null;
         this.request = request;
     }

@@ -40,7 +40,7 @@ class MPSCFrameworkTest {
 
     private static MPSCFramework<Integer, Integer> getFramework() {
         MPSCFramework<Integer, Integer> mpsc = new MPSCFramework<>(wrappers -> {
-            for (Wrapper<Integer, Integer> wrapper : wrappers) {
+            for (Exchange<Integer, Integer> wrapper : wrappers) {
 //                System.out.println("Consumed: " + wrapper.request);
                 wrapper.response = wrapper.request + 1;
             }

@@ -15,14 +15,14 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
     private final AtomicReference<InnerBatch<REQ, RES>> currentBatchReference = new AtomicReference<>(new InnerBatch<>());
     private final ExecutorService consumerExecutor = Executors.newSingleThreadExecutor();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final Consumer<Wrapper<REQ, RES>[]> processor;
+    private final Consumer<Exchange<REQ, RES>[]> processor;
     private final AtomicBoolean consumerAlive = new AtomicBoolean(true);
 
-    MPSCFramework(Consumer<Wrapper<REQ, RES>[]> processor) {
+    MPSCFramework(Consumer<Exchange<REQ, RES>[]> processor) {
         this.processor = processor;
     }
 
-    public static <Q, S> MPSCFramework<Q, S> create(Consumer<Wrapper<Q, S>[]> processor) {
+    public static <Q, S> MPSCFramework<Q, S> create(Consumer<Exchange<Q, S>[]> processor) {
         MPSCFramework<Q, S> mpscFramework = new MPSCFramework<>(processor);
         return mpscFramework.startConsumer();
     }
@@ -54,13 +54,13 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
     }
 
     private void processBatch(InnerBatch<REQ, RES> polledBatch) {
-        Wrapper<REQ, RES>[] batchContent = polledBatch.getBatchContent();
+        Exchange<REQ, RES>[] batchContent = polledBatch.getBatchContent();
         processor.accept(batchContent);
         polledBatch.sendDoneSignal();
     }
 
     public RES produce(REQ request) {
-        Wrapper<REQ, RES> wrapper = new Wrapper<>(request);
+        Exchange<REQ, RES> exchange = new Exchange<>(request);
         while (true) { //lock-free loop
             // cala zabawa z lockami
             var batch = currentBatchReference.get();
@@ -72,7 +72,7 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
                 CountDownLatch doneSignal;
                 try {
                     batchFinalized = batch.isBatchFinalized();
-                    if (batchFinalized || (doneSignal = batch.offer(wrapper)) == null) {
+                    if (batchFinalized || (doneSignal = batch.offer(exchange)) == null) {
                         continue;
                     }
                 } finally {
@@ -81,7 +81,7 @@ class MPSCFramework<REQ, RES> implements AutoCloseable {
                 // tu jestesmy juz poza lockiem
                 try {
                     doneSignal.await();
-                    return wrapper.response;
+                    return exchange.response;
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }

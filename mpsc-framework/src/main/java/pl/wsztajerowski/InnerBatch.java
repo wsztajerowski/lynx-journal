@@ -6,7 +6,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class InnerBatch<REQ, RES> {
     static int BATCH_SIZE = 1024; // Define batch size
-     final MpscArrayQueue<Wrapper<REQ, RES>> content;
+     final MpscArrayQueue<Exchange<REQ, RES>> content;
      final CountDownLatch doneSignal;
     private volatile boolean batchFinalized;
 
@@ -24,8 +24,8 @@ public class InnerBatch<REQ, RES> {
         doneSignal.countDown();
     }
 
-    public Wrapper<REQ, RES>[] getBatchContent() {
-        return content.toArray(new Wrapper[0]);
+    public Exchange<REQ, RES>[] getBatchContent() {
+        return content.toArray(new Exchange[0]);
     }
 
     public boolean isBatchFinalized() {
@@ -36,7 +36,7 @@ public class InnerBatch<REQ, RES> {
         return doneSignal;
     }
 
-    public CountDownLatch offer(Wrapper<REQ, RES> content) {
+    public CountDownLatch offer(Exchange<REQ, RES> content) {
         if (!batchFinalized && this.content.offer(content)) {
             return doneSignal;
         }

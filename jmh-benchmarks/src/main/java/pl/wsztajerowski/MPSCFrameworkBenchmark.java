@@ -8,8 +8,8 @@ public class MPSCFrameworkBenchmark {
     @Setup
     public void setup() {
         framework = MPSCFramework.create(wrappers -> {
-            for (Wrapper<Integer, Integer> wrapper : wrappers) {
-                wrapper.response = wrapper.request + 1;
+            for (Exchange<Integer, Integer> exchange : wrappers) {
+                exchange.response = exchange.request + 1;
             }
         });
     }
