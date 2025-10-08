@@ -29,7 +29,7 @@
         <jcstress.version>0.16</jcstress.version>
         <junit-jupiter.version>5.9.0</junit-jupiter.version>
         <assertj.version>3.23.1</assertj.version>
-        <pitest.version>1.16.1</pitest.version>
+        <pitest.version>1.20.6</pitest.version>
     </properties>
 
     <dependencyManagement>
