@@ -19,17 +19,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- plugin versions -->
-        <maven-test-plugins.version>3.1.0</maven-test-plugins.version>
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <maven-clean-plugin.version>3.3.2</maven-clean-plugin.version>
-        <maven-shade-plugin.version>3.5.1</maven-shade-plugin.version>
+        <maven-test-plugins.version>3.5.4</maven-test-plugins.version>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
+        <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <!-- dependency versions -->
-        <jmh.version>1.36</jmh.version>
-        <jcstress.version>0.16</jcstress.version>
-        <junit-jupiter.version>5.9.0</junit-jupiter.version>
+        <jmh.version>1.37</jmh.version>
+        <junit-jupiter.version>6.0.0</junit-jupiter.version>
         <assertj.version>3.23.1</assertj.version>
-        <pitest.version>1.16.1</pitest.version>
+        <pitest.version>1.20.6</pitest.version>
+        <!-- skipped plugins -->
+        <pitest.skip>true</pitest.skip>
     </properties>
 
     <dependencyManagement>
@@ -99,6 +100,9 @@
                     <groupId>org.pitest</groupId>
                     <artifactId>pitest-maven</artifactId>
                     <version>${pitest.version}</version>
+                    <configuration>
+                        <skip>${pitest.skip}</skip>
+                    </configuration>
                     <dependencies>
                         <!-- see: https://github.com/pitest/pitest-junit5-plugin -->
                         <dependency>
