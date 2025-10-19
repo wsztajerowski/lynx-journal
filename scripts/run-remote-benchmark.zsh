@@ -24,7 +24,7 @@ WORKER_SIZE=""
 display_usage() {
     echo "Usage: $0 -t=<type> [-w=<branch>] [-p=<profile>] [-wf=<family>] [-ws=<size>] -- [additional parameters]"
     echo "\nOptions:"
-    echo "  -t, --benchmark-type=<type>       Required. One of: jmh, jmh-with-async"
+    echo "  -t, --benchmark-type=<type>       Required. One of: jmh, jmh-with-async, jmh-with-prof"
     echo "  -w, --workflow-branch=<branch>    Optional. Default: 'main'"
     echo "  -p, --aws-profile=<profile>       Optional. AWS CLI profile to use"
     echo "  -sb, --skip-build                Optional. Skip Maven build step"
@@ -58,8 +58,8 @@ for ARG in "$@"; do
 done
 
 # Validate required options
-if [[ -z "$BENCHMARK_TYPE" || ! "$BENCHMARK_TYPE" =~ ^(jmh|jmh-with-async)$ ]]; then
-    log ERROR "--benchmark-type is required and must be one of: jmh, jmh-with-async"
+if [[ -z "$BENCHMARK_TYPE" || ! "$BENCHMARK_TYPE" =~ ^(jmh|jmh-with-async|jmh-with-prof)$ ]]; then
+    log ERROR "--benchmark-type is required and must be one of: jmh, jmh-with-async, jmh-with-prof"
     display_usage
     exit 1
 fi
