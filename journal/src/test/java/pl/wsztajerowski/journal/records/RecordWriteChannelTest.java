@@ -9,7 +9,6 @@ import pl.wsztajerowski.journal.Location;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
@@ -26,7 +25,7 @@ class RecordWriteChannelTest {
     @BeforeEach
     void setUp() throws IOException {
         dataFilePath = createTempFile("journal", ".dat");
-        sut = RecordWriteChannel.open(dataFilePath, new ConcurrentSkipListMap<>());
+        sut = RecordWriteChannel.open(dataFilePath, RecordWriteChannel.doubleBatch);
     }
 
     @AfterEach

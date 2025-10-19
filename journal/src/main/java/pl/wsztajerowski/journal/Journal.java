@@ -1,8 +1,6 @@
 package pl.wsztajerowski.journal;
 
-import pl.wsztajerowski.journal.records.JournalByteBuffer;
-import pl.wsztajerowski.journal.records.RecordReadChannel;
-import pl.wsztajerowski.journal.records.RecordWriteChannel;
+import pl.wsztajerowski.journal.records.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -13,13 +11,21 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
-import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
+/**
+ * Założenia do nowej implementacji:
+ * - dwa batch'e z stały rozmiarem i DirectByteBuffer pod spodem
+ * - Consumer przepina AtomicReference pomiędzy batchami
+ * - Client czeka na condition z batcha
+ * - producent kopiuje dane z byte buffera clienta do bufora batch'a
+ *
+ */
 public class Journal implements AutoCloseable {
+    public static final int MAX_WRITE_TRIES = 5;
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
     static final int JOURNAL_PREFIX = 0xCAFEBABE;
     static final int SCHEMA_VERSION_V1 = 0x0FF1CE01;
@@ -29,15 +35,13 @@ public class Journal implements AutoCloseable {
     private final RecordWriteChannel writeChannel;
 
     private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor();
-    private final ConcurrentNavigableMap<Long, ByteBuffer> writingQueue;
-    private final AtomicLong virtualPosition;
+    private final DoubleBatch doubleBatch;
 
-    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, ConcurrentNavigableMap<Long, ByteBuffer> writingQueue, long initJournalFilePosition) {
+    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, DoubleBatch doubleBatch) {
         this.readChannel = readChannel;
         this.writeChannel = writeChannel;
-        this.writingQueue = writingQueue;
+        this.doubleBatch = doubleBatch;
         writeChannelExecutor.submit(writeChannel);
-        virtualPosition = new AtomicLong(initJournalFilePosition);
     }
 
     static int journalHeaderLength() {
@@ -92,10 +96,11 @@ public class Journal implements AutoCloseable {
     }
 
     private static Journal initJournal(Path path) {
-        ConcurrentNavigableMap<Long, ByteBuffer> writingQueue = new ConcurrentSkipListMap<>();
-        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, writingQueue);
+        DoubleBatch batch = new DoubleBatch();
+        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, batch);
         long initJournalFilePosition = recordWriteChannel.getCurrentPosition();
-        return new Journal(RecordReadChannel.open(path), recordWriteChannel, writingQueue, initJournalFilePosition);
+        batch.initVirtualPosition(initJournalFilePosition);
+        return new Journal(RecordReadChannel.open(path), recordWriteChannel, batch);
     }
 
     public void close() throws IOException {
@@ -117,33 +122,35 @@ public class Journal implements AutoCloseable {
         }
     }
 
-    public ByteBuffer read(JournalByteBuffer destination, Location location) {
-        while (writingQueue.containsKey(location.offset())) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new JournalException(e);
+    public Location write(JournalByteBuffer buffer) {
+        ByteBuffer writableBuffer = buffer.getWritableBuffer();
+        for (int i = 0; i < MAX_WRITE_TRIES; i++){
+            Optional<WriteResult> writeResult = doubleBatch.write(writableBuffer);
+            if (writeResult.isPresent()) {
+                WriteResult result = writeResult.get();
+                try {
+                    result.condition().await(); // co z "spurious wakeup" ?
+                } catch (InterruptedException e) {
+                    throw new JournalException(e);
+                }
+                return new Location(result.location());
             }
         }
+        throw new JournalException("Write failed after " + MAX_WRITE_TRIES + " tries");
+    }
+
+    public ByteBuffer read(JournalByteBuffer destination, Location location) {
         return readChannel.read(destination, location).buffer();
     }
 
-    public ByteBuffer readAsync(JournalByteBuffer destination, Location location) {
-        return Optional.ofNullable(writingQueue.get(location.offset()))
-            .map(buffer -> {
-                ByteBuffer contentBuffer = destination.getContentBuffer();
-                contentBuffer.put(contentBuffer.position(),buffer, recordHeaderLength(), buffer.limit()-recordHeaderLength());
-                contentBuffer.limit(buffer.limit()-recordHeaderLength());
-                return contentBuffer;
-            })
-            .orElseGet(() -> readChannel.read(destination, location).buffer());
-    }
-
-    public Location write(JournalByteBuffer buffer) {
-        ByteBuffer writableBuffer = buffer.getWritableBuffer();
-        int remaining = writableBuffer.remaining();
-        long bufferPosition = virtualPosition.getAndAdd(remaining);
-        writingQueue.put(bufferPosition, writableBuffer);
-        return new Location(bufferPosition);
-    }
+//    public ByteBuffer readAsync(JournalByteBuffer destination, Location location) {
+//        return Optional.ofNullable(doubleBatch.get(location.offset()))
+//            .map(buffer -> {
+//                ByteBuffer contentBuffer = destination.getContentBuffer();
+//                contentBuffer.put(contentBuffer.position(),buffer, recordHeaderLength(), buffer.limit()-recordHeaderLength());
+//                contentBuffer.limit(buffer.limit()-recordHeaderLength());
+//                return contentBuffer;
+//            })
+//            .orElseGet(() -> readChannel.read(destination, location).buffer());
+//    }
 }
