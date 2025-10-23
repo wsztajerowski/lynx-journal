@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.Journal;
 import pl.wsztajerowski.journal.Location;
 
 import java.io.IOException;
@@ -25,7 +26,7 @@ class RecordWriteChannelTest {
     @BeforeEach
     void setUp() throws IOException {
         dataFilePath = createTempFile("journal", ".dat");
-        sut = RecordWriteChannel.open(dataFilePath, RecordWriteChannel.doubleBatch);
+        sut = RecordWriteChannel.open(dataFilePath, new DoubleBatch(Journal.BATCH_SIZE));
     }
 
     @AfterEach
@@ -35,7 +36,7 @@ class RecordWriteChannelTest {
 
     @Disabled //FIXME: adjust the test to current impl
     @Test
-    void journalWithSavedVariableContainsCorrectRecord() throws IOException, InterruptedException {
+    void journalWithSavedVariableContainsCorrectRecord() throws IOException {
         // given
         var content = "test";
         var buffer = wrapInJournalByteBuffer(content);

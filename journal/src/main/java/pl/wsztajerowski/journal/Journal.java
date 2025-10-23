@@ -9,9 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.Condition;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
@@ -25,7 +23,7 @@ import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
  *
  */
 public class Journal implements AutoCloseable {
-    public static final int MAX_WRITE_TRIES = 5;
+    public static final int BATCH_SIZE = 4096;
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
     static final int JOURNAL_PREFIX = 0xCAFEBABE;
     static final int SCHEMA_VERSION_V1 = 0x0FF1CE01;
@@ -34,7 +32,7 @@ public class Journal implements AutoCloseable {
     private final RecordReadChannel readChannel;
     private final RecordWriteChannel writeChannel;
 
-    private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "write-channel"));
     private final DoubleBatch doubleBatch;
 
     Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, DoubleBatch doubleBatch) {
@@ -49,16 +47,20 @@ public class Journal implements AutoCloseable {
     }
 
     public static Journal open(Path path, boolean truncateFile) {
+        return open(path, truncateFile, BATCH_SIZE);
+    }
+
+    public static Journal open(Path path, boolean truncateFile, int batchSize) {
         try {
             // FIXME: FileChannel.open() with StandardOption.CREATE throws NoSuchFileException
             if (Files.notExists(path)) {
                 Files.createFile(path);
-                return createEmptyJournal(path);
+                return createEmptyJournal(path, batchSize);
             }
 
             long journalFileSize = Files.size(path);
             if (truncateFile || journalFileSize == 0) {
-                return createEmptyJournal(path);
+                return createEmptyJournal(path, batchSize);
             }
 
             if (journalFileSize > 0 && journalFileSize < journalHeaderLength()) {
@@ -83,24 +85,24 @@ public class Journal implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return initJournal(path);
+        return initJournal(path, batchSize);
     }
 
-    private static Journal createEmptyJournal(Path path) {
+    private static Journal createEmptyJournal(Path path, int batchSize) {
         try {
             Files.write(path, toByteArray(Journal.JOURNAL_PREFIX, Journal.SCHEMA_VERSION_V1));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return initJournal(path);
+        return initJournal(path, batchSize);
     }
 
-    private static Journal initJournal(Path path) {
-        DoubleBatch batch = new DoubleBatch();
-        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, batch);
+    private static Journal initJournal(Path path, int batchSize) {
+        DoubleBatch doubleBatch = new DoubleBatch(batchSize);
+        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, doubleBatch);
         long initJournalFilePosition = recordWriteChannel.getCurrentPosition();
-        batch.initVirtualPosition(initJournalFilePosition);
-        return new Journal(RecordReadChannel.open(path), recordWriteChannel, batch);
+        doubleBatch.initVirtualPosition(initJournalFilePosition);
+        return new Journal(RecordReadChannel.open(path), recordWriteChannel, doubleBatch);
     }
 
     public void close() throws IOException {
@@ -124,19 +126,14 @@ public class Journal implements AutoCloseable {
 
     public Location write(JournalByteBuffer buffer) {
         ByteBuffer writableBuffer = buffer.getWritableBuffer();
-        for (int i = 0; i < MAX_WRITE_TRIES; i++){
-            Optional<WriteResult> writeResult = doubleBatch.write(writableBuffer);
-            if (writeResult.isPresent()) {
-                WriteResult result = writeResult.get();
-                try {
-                    result.condition().await(); // co z "spurious wakeup" ?
-                } catch (InterruptedException e) {
-                    throw new JournalException(e);
-                }
-                return new Location(result.location());
-            }
-        }
-        throw new JournalException("Write failed after " + MAX_WRITE_TRIES + " tries");
+        long location = doubleBatch.write(writableBuffer, true);
+        return new Location(location);
+    }
+
+    public Location writeAsync(JournalByteBuffer buffer) {
+        ByteBuffer writableBuffer = buffer.getWritableBuffer();
+        long location = doubleBatch.write(writableBuffer, false);
+        return new Location(location);
     }
 
     public ByteBuffer read(JournalByteBuffer destination, Location location) {
