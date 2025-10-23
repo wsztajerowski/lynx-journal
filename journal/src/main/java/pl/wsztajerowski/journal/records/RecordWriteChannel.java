@@ -39,24 +39,20 @@ public class RecordWriteChannel implements AutoCloseable, Runnable {
     public void run() {
         while (!Thread.currentThread().isInterrupted() && !isClosed.get()) {
             Batch currentBatch = doubleBatch.getCurrentBatch();
-            if (currentBatch.isEmpty()) {
-                Thread.onSpinWait();
-                continue;
-            }
+            System.out.println("Awaiting on isFullCondition: " + currentBatch.toString());
+            currentBatch.awaitOnIsFullCondition();      // co z "Spurious wakeup" ?"
+
             try {
-                doubleBatch.switchBatch();
+                System.out.println("Flushing batch");
                 ByteBuffer writableBuffer = currentBatch.writableBuffer();
                 int expectedBytesToWrite = writableBuffer.remaining();
                 long totalBytesWritten = fileChannel.write(writableBuffer);
-//                System.out.println("Empty buffers: " + emptyBuffers);
-//                System.out.println("Expecting write " + expectedBytes + " bytes to " + recordsToWrite.firstKey());
-//                System.out.println("File position before write: " + fileChannel.position());
-//                long writtenBytes = fileChannel.write(buffers);
-//                System.out.println("File position after write: " + fileChannel.position());
                 if (totalBytesWritten != expectedBytesToWrite) {
                     throw new JournalRuntimeIOException("Written bytes mismatch - expected: " + expectedBytesToWrite + ", actual: " + totalBytesWritten);
                 }
                 currentBatch.clear();
+                System.out.println("Signaling flushed all");
+                currentBatch.signalFlushedAll();
             } catch (Exception e) {
                 e.printStackTrace();
                 Thread.currentThread().interrupt();
