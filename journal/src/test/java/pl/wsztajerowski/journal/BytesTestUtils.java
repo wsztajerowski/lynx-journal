@@ -12,6 +12,10 @@ public class BytesTestUtils {
         return HexFormat.of().formatHex(value.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static CharSequence toUpperCaseUtf8HexString(String value) {
+        return HexFormat.of().formatHex(value.getBytes(StandardCharsets.UTF_8)).toUpperCase();
+    }
+
     public static byte[] intToBytes(int value) {
         return new byte[] {
             (byte)(value >> 24),
