@@ -6,15 +6,14 @@ import java.util.concurrent.locks.Condition;
 
 public class Batch {
     private final ByteBuffer batchByteBuffer;
-    private final AtomicLong virtualPosition;
     private final Condition batchHasFlushedCondition;
-    private final Condition batchIsFullCondition;
+    private volatile boolean isBatchFlushed = false;
+    private final AtomicLong virtualPosition;
 
-    public Batch(int batchSize, AtomicLong virtualPosition, Condition batchHasFlushedCondition, Condition batchIsFullCondition) {
+    public Batch(int batchSize, AtomicLong virtualPosition, Condition batchHasFlushedCondition) {
         this.virtualPosition = virtualPosition;
-        this.batchHasFlushedCondition = batchHasFlushedCondition;
-        this.batchIsFullCondition = batchIsFullCondition;
         batchByteBuffer = ByteBuffer.allocateDirect(batchSize);
+        this.batchHasFlushedCondition = batchHasFlushedCondition;
     }
 
     public boolean isEmpty() {
@@ -24,28 +23,13 @@ public class Batch {
         return batchByteBuffer.remaining() >= numberOfBytesToWrite;
     }
 
-    public long write(ByteBuffer buffer, boolean waitForFlush) throws InterruptedException {
+    public long write(ByteBuffer buffer) throws InterruptedException {
         long location = virtualPosition.getAndAdd(buffer.remaining());
         buffer.mark();
         batchByteBuffer.put(buffer);
         buffer.reset();
-        if (waitForFlush) {
-            batchHasFlushedCondition.await();        // spurious wakeup ?
-        }
         return location;
     }
-
-//        int batchByteBufferPosition = batchByteBuffer.position();
-//        try {
-//
-////            batchByteBuffer.position(batchByteBufferPosition + numberOfBytesToWrite);
-//        } finally {
-//        }
-        // copy data outside lock
-//        batchByteBuffer.put(batchByteBufferPosition, buffer, buffer.position(), numberOfBytesToWrite);
-//        Condition condition = batchLock.writeLock().newCondition();     // To raczej nie tak...
-//        return Optional.of(new WriteResult(location, condition));
-//    }
 
     public ByteBuffer writableBuffer() {
         return batchByteBuffer.flip();
@@ -55,15 +39,23 @@ public class Batch {
         batchByteBuffer.clear();
     }
 
-    public void notifyIsFull() {
-        batchIsFullCondition.signal();
+    public Condition getBatchHasFlushedCondition() {
+        return batchHasFlushedCondition;
     }
 
-    public void awaitOnIsFullCondition() {
-        batchIsFullCondition.awaitUninterruptibly();
+    public boolean isFull() {
+        return batchByteBuffer.remaining() == 0; // we can return true for 80-90% full
     }
 
-    public void signalFlushedAll() {
-        batchHasFlushedCondition.signalAll();
+    void markBatchAsFlushed() {
+        isBatchFlushed = true;
+    }
+
+    boolean hasBatchFlushed() {
+        return isBatchFlushed;
+    }
+
+    public void resetFlushMark() {
+        isBatchFlushed = false;
     }
 }

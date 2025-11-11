@@ -70,7 +70,7 @@ public class ReadLastRecordJournalPerformanceBenchmark {
             return null;
         }
         try {
-            return journal.readAsync(output, location);
+            return journal.read(output, location);
         } catch (JournalException e) {
             System.out.printf("Reading record %s throws an exception. Data file: %s %n", location, dataFilePath);
             throw e;

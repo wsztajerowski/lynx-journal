@@ -14,14 +14,6 @@ import java.util.concurrent.*;
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
 
-/**
- * Założenia do nowej implementacji:
- * - dwa batch'e z stały rozmiarem i DirectByteBuffer pod spodem
- * - Consumer przepina AtomicReference pomiędzy batchami
- * - Client czeka na condition z batcha
- * - producent kopiuje dane z byte buffera clienta do bufora batch'a
- *
- */
 public class Journal implements AutoCloseable {
     public static final int BATCH_SIZE = 4096;
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
@@ -30,16 +22,12 @@ public class Journal implements AutoCloseable {
     static final List<Integer> SUPPORTED_SCHEMA_VERSIONS = List.of(SCHEMA_VERSION_V1);
 
     private final RecordReadChannel readChannel;
-    private final RecordWriteChannel writeChannel;
 
-    private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "write-channel"));
     private final DoubleBatch doubleBatch;
 
-    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, DoubleBatch doubleBatch) {
+    Journal(RecordReadChannel readChannel, DoubleBatch doubleBatch) {
         this.readChannel = readChannel;
-        this.writeChannel = writeChannel;
         this.doubleBatch = doubleBatch;
-        writeChannelExecutor.submit(writeChannel);
     }
 
     static int journalHeaderLength() {
@@ -52,12 +40,6 @@ public class Journal implements AutoCloseable {
 
     public static Journal open(Path path, boolean truncateFile, int batchSize) {
         try {
-            // FIXME: FileChannel.open() with StandardOption.CREATE throws NoSuchFileException
-            if (Files.notExists(path)) {
-                Files.createFile(path);
-                return createEmptyJournal(path, batchSize);
-            }
-
             long journalFileSize = Files.size(path);
             if (truncateFile || journalFileSize == 0) {
                 return createEmptyJournal(path, batchSize);
@@ -98,29 +80,15 @@ public class Journal implements AutoCloseable {
     }
 
     private static Journal initJournal(Path path, int batchSize) {
-        DoubleBatch doubleBatch = new DoubleBatch(batchSize);
-        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, doubleBatch);
-        long initJournalFilePosition = recordWriteChannel.getCurrentPosition();
-        doubleBatch.initVirtualPosition(initJournalFilePosition);
-        return new Journal(RecordReadChannel.open(path), recordWriteChannel, doubleBatch);
+        DoubleBatch doubleBatch = DoubleBatch.open(path, batchSize);
+        return new Journal(RecordReadChannel.open(path), doubleBatch);
     }
 
     public void close() throws IOException {
         try {
-            try {
-                writeChannelExecutor.shutdown();
-                readChannel.close();
-            } finally {
-                writeChannel.close();
-            }
+            doubleBatch.close();
         } finally {
-            try {
-                if (!writeChannelExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-                    writeChannelExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                writeChannelExecutor.shutdownNow();
-            }
+            readChannel.close();
         }
     }
 
@@ -140,14 +108,4 @@ public class Journal implements AutoCloseable {
         return readChannel.read(destination, location).buffer();
     }
 
-//    public ByteBuffer readAsync(JournalByteBuffer destination, Location location) {
-//        return Optional.ofNullable(doubleBatch.get(location.offset()))
-//            .map(buffer -> {
-//                ByteBuffer contentBuffer = destination.getContentBuffer();
-//                contentBuffer.put(contentBuffer.position(),buffer, recordHeaderLength(), buffer.limit()-recordHeaderLength());
-//                contentBuffer.limit(buffer.limit()-recordHeaderLength());
-//                return contentBuffer;
-//            })
-//            .orElseGet(() -> readChannel.read(destination, location).buffer());
-//    }
 }
