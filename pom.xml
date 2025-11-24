@@ -28,7 +28,7 @@
         <jmh.version>1.37</jmh.version>
         <junit-jupiter.version>6.0.0</junit-jupiter.version>
         <assertj.version>3.27.6</assertj.version>
-        <pitest.version>1.20.6</pitest.version>
+        <pitest.version>1.22.0</pitest.version>
         <!-- skipped plugins -->
         <pitest.skip>true</pitest.skip>
     </properties>
