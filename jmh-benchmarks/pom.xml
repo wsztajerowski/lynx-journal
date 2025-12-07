@@ -15,16 +15,10 @@
 
     <name>JMH benchmarks</name>
 
-
     <dependencies>
         <dependency>
             <groupId>pl.wsztajerowski</groupId>
             <artifactId>journal</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>pl.wsztajerowski</groupId>
-            <artifactId>mpsc-framework</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

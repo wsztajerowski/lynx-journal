@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -64,22 +65,19 @@ public class Journal implements AutoCloseable {
                     throw new UnsupportedJournalVersionException(schemaVersion);
                 }
             }
+
+            return initJournal(path, batchSize);
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new UncheckedIOException("Error during opening a Journal", e);
         }
+    }
+
+    private static Journal createEmptyJournal(Path path, int batchSize) throws IOException {
+        Files.write(path, toByteArray(Journal.JOURNAL_PREFIX, Journal.SCHEMA_VERSION_V1), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
         return initJournal(path, batchSize);
     }
 
-    private static Journal createEmptyJournal(Path path, int batchSize) {
-        try {
-            Files.write(path, toByteArray(Journal.JOURNAL_PREFIX, Journal.SCHEMA_VERSION_V1));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return initJournal(path, batchSize);
-    }
-
-    private static Journal initJournal(Path path, int batchSize) {
+    private static Journal initJournal(Path path, int batchSize) throws IOException {
         DoubleBatch doubleBatch = DoubleBatch.open(path, batchSize);
         return new Journal(RecordReadChannel.open(path), doubleBatch);
     }
