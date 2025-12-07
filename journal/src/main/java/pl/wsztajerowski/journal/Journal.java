@@ -1,8 +1,6 @@
 package pl.wsztajerowski.journal;
 
-import pl.wsztajerowski.journal.records.JournalByteBuffer;
-import pl.wsztajerowski.journal.records.RecordReadChannel;
-import pl.wsztajerowski.journal.records.RecordWriteChannel;
+import pl.wsztajerowski.journal.records.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,33 +9,25 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
-import static pl.wsztajerowski.journal.records.RecordHeader.recordHeaderLength;
 
 public class Journal implements AutoCloseable {
+    public static final int BATCH_SIZE = 4096;
     private static final int NUMBER_OF_INTS_IN_HEADER = 2;
     static final int JOURNAL_PREFIX = 0xCAFEBABE;
     static final int SCHEMA_VERSION_V1 = 0x0FF1CE01;
     static final List<Integer> SUPPORTED_SCHEMA_VERSIONS = List.of(SCHEMA_VERSION_V1);
 
     private final RecordReadChannel readChannel;
-    private final RecordWriteChannel writeChannel;
 
-    private final ExecutorService writeChannelExecutor = Executors.newSingleThreadExecutor();
-    private final ConcurrentNavigableMap<Long, ByteBuffer> writingQueue;
-    private final AtomicLong virtualPosition;
+    private final DoubleBatch doubleBatch;
 
-    Journal(RecordReadChannel readChannel, RecordWriteChannel writeChannel, ConcurrentNavigableMap<Long, ByteBuffer> writingQueue, long initJournalFilePosition) {
+    Journal(RecordReadChannel readChannel, DoubleBatch doubleBatch) {
         this.readChannel = readChannel;
-        this.writeChannel = writeChannel;
-        this.writingQueue = writingQueue;
-        writeChannelExecutor.submit(writeChannel);
-        virtualPosition = new AtomicLong(initJournalFilePosition);
+        this.doubleBatch = doubleBatch;
     }
 
     static int journalHeaderLength() {
@@ -45,16 +35,14 @@ public class Journal implements AutoCloseable {
     }
 
     public static Journal open(Path path, boolean truncateFile) {
-        try {
-            // FIXME: FileChannel.open() with StandardOption.CREATE throws NoSuchFileException
-            if (Files.notExists(path)) {
-                Files.createFile(path);
-                return createEmptyJournal(path);
-            }
+        return open(path, truncateFile, BATCH_SIZE);
+    }
 
+    public static Journal open(Path path, boolean truncateFile, int batchSize) {
+        try {
             long journalFileSize = Files.size(path);
             if (truncateFile || journalFileSize == 0) {
-                return createEmptyJournal(path);
+                return createEmptyJournal(path, batchSize);
             }
 
             if (journalFileSize > 0 && journalFileSize < journalHeaderLength()) {
@@ -79,71 +67,45 @@ public class Journal implements AutoCloseable {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return initJournal(path);
+        return initJournal(path, batchSize);
     }
 
-    private static Journal createEmptyJournal(Path path) {
+    private static Journal createEmptyJournal(Path path, int batchSize) {
         try {
             Files.write(path, toByteArray(Journal.JOURNAL_PREFIX, Journal.SCHEMA_VERSION_V1));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return initJournal(path);
+        return initJournal(path, batchSize);
     }
 
-    private static Journal initJournal(Path path) {
-        ConcurrentNavigableMap<Long, ByteBuffer> writingQueue = new ConcurrentSkipListMap<>();
-        RecordWriteChannel recordWriteChannel = RecordWriteChannel.open(path, writingQueue);
-        long initJournalFilePosition = recordWriteChannel.getCurrentPosition();
-        return new Journal(RecordReadChannel.open(path), recordWriteChannel, writingQueue, initJournalFilePosition);
+    private static Journal initJournal(Path path, int batchSize) {
+        DoubleBatch doubleBatch = DoubleBatch.open(path, batchSize);
+        return new Journal(RecordReadChannel.open(path), doubleBatch);
     }
 
     public void close() throws IOException {
         try {
-            try {
-                writeChannelExecutor.shutdown();
-                readChannel.close();
-            } finally {
-                writeChannel.close();
-            }
+            doubleBatch.close();
         } finally {
-            try {
-                if (!writeChannelExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-                    writeChannelExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                writeChannelExecutor.shutdownNow();
-            }
+            readChannel.close();
         }
-    }
-
-    public ByteBuffer read(JournalByteBuffer destination, Location location) {
-        while (writingQueue.containsKey(location.offset())) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new JournalException(e);
-            }
-        }
-        return readChannel.read(destination, location).buffer();
-    }
-
-    public ByteBuffer readAsync(JournalByteBuffer destination, Location location) {
-        return Optional.ofNullable(writingQueue.get(location.offset()))
-            .map(buffer -> {
-                ByteBuffer contentBuffer = destination.getContentBuffer();
-                contentBuffer.put(contentBuffer.position(),buffer, recordHeaderLength(), buffer.limit()-recordHeaderLength());
-                contentBuffer.limit(buffer.limit()-recordHeaderLength());
-                return contentBuffer;
-            })
-            .orElseGet(() -> readChannel.read(destination, location).buffer());
     }
 
     public Location write(JournalByteBuffer buffer) {
         ByteBuffer writableBuffer = buffer.getWritableBuffer();
-        int remaining = writableBuffer.remaining();
-        long bufferPosition = virtualPosition.getAndAdd(remaining);
-        writingQueue.put(bufferPosition, writableBuffer);
-        return new Location(bufferPosition);
+        long location = doubleBatch.write(writableBuffer, true);
+        return new Location(location);
     }
+
+    public Location writeAsync(JournalByteBuffer buffer) {
+        ByteBuffer writableBuffer = buffer.getWritableBuffer();
+        long location = doubleBatch.write(writableBuffer, false);
+        return new Location(location);
+    }
+
+    public ByteBuffer read(JournalByteBuffer destination, Location location) {
+        return readChannel.read(destination, location).buffer();
+    }
+
 }

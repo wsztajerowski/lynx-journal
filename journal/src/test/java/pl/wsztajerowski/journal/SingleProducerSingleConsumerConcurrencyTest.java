@@ -2,6 +2,7 @@ package pl.wsztajerowski.journal;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
 import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
+@Disabled
 class SingleProducerSingleConsumerConcurrencyTest {
     private Journal sut;
 

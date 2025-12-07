@@ -70,7 +70,7 @@ class MultiProducersMultiConsumersConcurrencyTest {
                 while (readsCounter.incrementAndGet() < iterations) {
                     buffer.getContentBuffer().clear();
                     location = locationQueue.poll(100, TimeUnit.SECONDS);
-                    var variable = sut.readAsync(buffer, location);
+                    var variable = sut.read(buffer, location);
                     sum.addAndGet(variable.getInt());
                 }
                 System.out.println("Last read on thread: " + Thread.currentThread().getName() + " : " + location);

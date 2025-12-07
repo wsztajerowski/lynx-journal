@@ -2,6 +2,7 @@ package pl.wsztajerowski.journal;
 
 import pl.wsztajerowski.journal.records.JournalByteBuffer;
 import pl.wsztajerowski.journal.records.JournalByteBufferFactory;
+import pl.wsztajerowski.journal.records.RecordHeader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,6 +21,15 @@ public class FilesTestUtils {
         contentBuffer
             .put(contentBytes);
         contentBuffer.flip();
+        return journalByteBuffer;
+    }
+    public static JournalByteBuffer wrapInJournalByteBufferWithSize(String content, int totalBufferSize) {
+        byte[] contentBytes = content.getBytes(UTF_8);
+        JournalByteBuffer journalByteBuffer = JournalByteBufferFactory.createJournalByteBuffer(totalBufferSize - RecordHeader.recordHeaderLength());
+        ByteBuffer contentBuffer = journalByteBuffer.getContentBuffer();
+        contentBuffer
+            .put(contentBytes);
+        contentBuffer.position(0);
         return journalByteBuffer;
     }
 
