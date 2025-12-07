@@ -26,6 +26,7 @@
         <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
         <!-- dependency versions -->
         <jmh.version>1.37</jmh.version>
+        <jcstress.version>0.16</jcstress.version>
         <junit-jupiter.version>6.0.0</junit-jupiter.version>
         <assertj.version>3.27.6</assertj.version>
         <pitest.version>1.20.6</pitest.version>
@@ -176,6 +177,7 @@
     </build>
     <modules>
         <module>jmh-benchmarks</module>
+        <module>jcstress-tests</module>
         <module>journal</module>
         <module>mpsc-framework</module>
     </modules>
