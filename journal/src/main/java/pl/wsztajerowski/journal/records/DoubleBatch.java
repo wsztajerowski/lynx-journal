@@ -24,21 +24,21 @@ public class DoubleBatch {
     private volatile boolean isClosed;
 
 
-    public static DoubleBatch open(Path journalFile, int batchSize) {
-        try {
-            ExecutorService executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "write-channel-executor"));
-            FileChannel writerChannel = FileChannel.open(journalFile, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+    public static DoubleBatch open(Path journalFile, int batchSize) throws IOException {
+        ExecutorService executor = Executors.newSingleThreadExecutor(
+            Thread.ofPlatform()
+                .name("write-channel-executor")
+                .factory()
+        );
+        FileChannel writerChannel = FileChannel.open(journalFile, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
 
-            return new DoubleBatch(executor, writerChannel, batchSize);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return new DoubleBatch(executor, writerChannel, batchSize);
     }
 
     DoubleBatch(ExecutorService executor, FileChannel writeChannel, int batchSize) throws IOException {
         this.executorService = executor;
         this.writeChannel = writeChannel;
-        AtomicLong virtualPosition = new AtomicLong(writeChannel.position());
+        AtomicLong virtualPosition = new AtomicLong(writeChannel.size());
         batchLock = new ReentrantLock(true);
         Condition batchAHasFlushedCondition = batchLock.newCondition();
         Condition batchBHasFlushedCondition = batchLock.newCondition();
@@ -70,7 +70,7 @@ public class DoubleBatch {
                 }
                 if (waitForFlush) {                                                 // async write
                     while (!activeBatch.hasBatchFlushed()) {
-                        activeBatch.getBatchHasFlushedCondition().await();
+                        activeBatch.getHasFlushedCondition().await();
                     }
                 }
                 return offset;
@@ -119,7 +119,7 @@ public class DoubleBatch {
         }
         batchToFlush.clear();
         batchToFlush.markBatchAsFlushed();
-        batchToFlush.getBatchHasFlushedCondition().signalAll();
+        batchToFlush.getHasFlushedCondition().signalAll();
     }
 
     private void trySwapBatch() {
