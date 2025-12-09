@@ -31,6 +31,7 @@
         <pitest.version>1.22.0</pitest.version>
         <!-- skipped plugins -->
         <pitest.skip>true</pitest.skip>
+        <fray-plugins-maven.version>0.6.9</fray-plugins-maven.version>
     </properties>
 
     <dependencyManagement>
@@ -53,6 +54,24 @@
                 <artifactId>pitest-parent</artifactId>
                 <version>${pitest.version}</version>
                 <type>pom</type>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.pastalab.fray</groupId>
+                <artifactId>fray-junit</artifactId>
+                <version>${fray-plugins-maven.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.pastalab.fray</groupId>
+                <artifactId>fray-core</artifactId>
+                <version>${fray-plugins-maven.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.pastalab.fray</groupId>
+                <artifactId>fray-runtime</artifactId>
+                <version>${fray-plugins-maven.version}</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -171,11 +190,25 @@
                         <mainClass>org.adoptopenjdk.jitwatch.launch.LaunchUI</mainClass>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.pastalab.fray.maven</groupId>
+                    <artifactId>fray-plugins-maven</artifactId>
+                    <version>${fray-plugins-maven.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-fray</id>
+                            <phase>none</phase>
+                            <goals>
+                                <goal>prepare-fray</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
     <modules>
-        <module>jmh-benchmarks</module>
+<!--        <module>jmh-benchmarks</module>-->
         <module>journal</module>
     </modules>
 </project>
