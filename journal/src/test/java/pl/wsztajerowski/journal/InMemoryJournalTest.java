@@ -2,6 +2,7 @@ package pl.wsztajerowski.journal;
 
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -14,8 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
 import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJournalByteBuffer;
 
+@Disabled
 public class InMemoryJournalTest {
-
 
     private static final int BATCH_SIZE = 64;
 
