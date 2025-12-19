@@ -61,6 +61,15 @@
             <plugin>
                 <groupId>org.pastalab.fray.maven</groupId>
                 <artifactId>fray-plugins-maven</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-fray</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>prepare-fray</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
