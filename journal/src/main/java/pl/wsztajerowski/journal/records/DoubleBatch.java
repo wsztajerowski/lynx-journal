@@ -61,12 +61,12 @@ public class DoubleBatch {
                 }
                 Batch activeBatch = currentBatch;
                 if (!activeBatch.hasRemaining(buffer.remaining())) {
-                    trySwapBatch();
+                    batchIsFullCondition.signal();
                     continue;
                 }
                 long offset = activeBatch.write(buffer);
                 if (activeBatch.isFull()) {
-                    trySwapBatch();                                                 // signal(consumer) - producer still has lock
+                    batchIsFullCondition.signal();                                  // signal(consumer) - producer still has lock
                 }
                 if (waitForFlush) {                                                 // async write
                     while (!activeBatch.hasBatchFlushed()) {
@@ -91,8 +91,8 @@ public class DoubleBatch {
                 while (batchToFlush.isEmpty()) {
                     batchIsFullCondition.await();
                 }
-
                 flushBatchAndSignalAllWaitingWriters(batchToFlush);
+                swapBatch();
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
             } finally {
@@ -122,13 +122,10 @@ public class DoubleBatch {
         batchToFlush.getHasFlushedCondition().signalAll();
     }
 
-    private void trySwapBatch() {
-        batchIsFullCondition.signal();
+    private void swapBatch() {
         Batch nextBatch = currentBatch == batchA ? batchB : batchA;
-        if (nextBatch.isEmpty()) {
-            nextBatch.resetFlushMark();
-            currentBatch = nextBatch;
-        }
+        nextBatch.resetFlushMark();
+        currentBatch = nextBatch;
     }
 
     public void close() {
