@@ -16,7 +16,6 @@ import static pl.wsztajerowski.journal.records.JournalByteBufferFactory.createJo
 
 public class InMemoryJournalTest {
 
-
     private static final int BATCH_SIZE = 64;
 
     @Test
@@ -34,7 +33,6 @@ public class InMemoryJournalTest {
                 var location = sut.write(buffer);
                 // and
                 readContentBuffer = sut.read(createJournalByteBuffer(64), location);
-
             }
         }
         // then
