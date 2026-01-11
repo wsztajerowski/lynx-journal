@@ -31,7 +31,7 @@
         <pitest.version>1.20.6</pitest.version>
         <!-- skipped plugins -->
         <pitest.skip>true</pitest.skip>
-        <fray-plugins-maven.version>0.6.9</fray-plugins-maven.version>
+        <fray-plugins-maven.version>0.7.1</fray-plugins-maven.version>
     </properties>
 
     <dependencyManagement>
