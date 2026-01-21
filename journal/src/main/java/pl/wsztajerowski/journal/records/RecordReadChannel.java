@@ -42,7 +42,7 @@ public class RecordReadChannel implements AutoCloseable {
         ByteBuffer localByteBuffer = threadLocalBuffer.get();
         localByteBuffer.clear();
         int readBytes = readPage(localByteBuffer, location.offset());
-        var recordHeader = readRecordHeader(localByteBuffer, readBytes);
+        RecordHeader recordHeader = readRecordHeader(localByteBuffer, readBytes);
         ByteBuffer targetContentBuffer = destination.getContentBuffer();
         validateDestinationBufferSpaceAndSetLimit(targetContentBuffer, recordHeader);
 

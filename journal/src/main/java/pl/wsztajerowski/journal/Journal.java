@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.concurrent.*;
 
 import static pl.wsztajerowski.journal.BytesUtils.fromByteArray;
 import static pl.wsztajerowski.journal.BytesUtils.toByteArray;
@@ -24,11 +23,11 @@ public class Journal implements AutoCloseable {
 
     private final RecordReadChannel readChannel;
 
-    private final DoubleBatch doubleBatch;
+    private final BatchingWriteableChannel batchingWriteableChannel;
 
-    Journal(RecordReadChannel readChannel, DoubleBatch doubleBatch) {
+    Journal(RecordReadChannel readChannel, BatchingWriteableChannel batchingWriteableChannel) {
         this.readChannel = readChannel;
-        this.doubleBatch = doubleBatch;
+        this.batchingWriteableChannel = batchingWriteableChannel;
     }
 
     static int journalHeaderLength() {
@@ -78,13 +77,13 @@ public class Journal implements AutoCloseable {
     }
 
     private static Journal initJournal(Path path, int batchSize) throws IOException {
-        DoubleBatch doubleBatch = DoubleBatch.open(path, batchSize);
-        return new Journal(RecordReadChannel.open(path), doubleBatch);
+        BatchingWriteableChannel batchingWriteableChannel = BatchingWriteableChannel.open(path, batchSize);
+        return new Journal(RecordReadChannel.open(path), batchingWriteableChannel);
     }
 
     public void close() throws IOException {
         try {
-            doubleBatch.close();
+            batchingWriteableChannel.close();
         } finally {
             readChannel.close();
         }
@@ -92,13 +91,13 @@ public class Journal implements AutoCloseable {
 
     public Location write(JournalByteBuffer buffer) {
         ByteBuffer writableBuffer = buffer.getWritableBuffer();
-        long location = doubleBatch.write(writableBuffer, true);
+        long location = batchingWriteableChannel.write(writableBuffer, true);
         return new Location(location);
     }
 
     public Location writeAsync(JournalByteBuffer buffer) {
         ByteBuffer writableBuffer = buffer.getWritableBuffer();
-        long location = doubleBatch.write(writableBuffer, false);
+        long location = batchingWriteableChannel.write(writableBuffer, false);
         return new Location(location);
     }
 

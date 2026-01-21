@@ -4,16 +4,16 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 
-class Batch {
+class IOWritesBatch {
     private final ByteBuffer batchBuffer;
-    private final Condition hasFlushedCondition;
+    private final Condition isFlushedCondition;
     private volatile boolean isFlushed = false;
-    private final AtomicLong virtualPosition;
+    private final AtomicLong virtualFileChannelPosition;
 
-    Batch(int batchSize, AtomicLong virtualPosition, Condition hasFlushedCondition) {
-        this.virtualPosition = virtualPosition;
-        this.hasFlushedCondition = hasFlushedCondition;
-        batchBuffer = ByteBuffer.allocateDirect(batchSize);
+    IOWritesBatch(ByteBuffer batchBuffer, AtomicLong virtualFileChannelPosition, Condition isFlushedCondition) {
+        this.batchBuffer = batchBuffer;
+        this.virtualFileChannelPosition = virtualFileChannelPosition;
+        this.isFlushedCondition = isFlushedCondition;
     }
 
     boolean isEmpty() {
@@ -24,8 +24,8 @@ class Batch {
         return batchBuffer.remaining() >= numberOfBytesToWrite;
     }
 
-    long write(ByteBuffer buffer) throws InterruptedException {
-        long location = virtualPosition.getAndAdd(buffer.remaining());
+    long write(ByteBuffer buffer) {
+        long location = virtualFileChannelPosition.getAndAdd(buffer.remaining());
         buffer.mark();
         batchBuffer.put(buffer);
         buffer.reset();
@@ -40,10 +40,6 @@ class Batch {
         batchBuffer.clear();
     }
 
-    Condition getHasFlushedCondition() {
-        return hasFlushedCondition;
-    }
-
     boolean isFull() {
         return batchBuffer.remaining() == 0; // we can return true for 80-90% full
     }
@@ -52,11 +48,19 @@ class Batch {
         isFlushed = true;
     }
 
-    boolean hasBatchFlushed() {
+    boolean isBatchFlushed() {
         return isFlushed;
     }
 
     void resetFlushMark() {
         isFlushed = false;
+    }
+
+    public void await() throws InterruptedException {
+        isFlushedCondition.await();
+    }
+
+    public void signalAll() {
+        isFlushedCondition.signalAll();
     }
 }

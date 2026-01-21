@@ -7,44 +7,45 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-public class DoubleBatch {
+public class BatchingWriteableChannel {
+    private static final ThreadFactory WRITE_CHANNEL_THREAD_FACTORY = Thread.ofPlatform()
+        .name("write-channel-executor-", 1)
+        .factory();
     private final ExecutorService executorService;
     private final FileChannel writeChannel;
-    private final Batch batchA;
-    private final Batch batchB;
+    private final IOWritesBatch batchA;
+    private final IOWritesBatch batchB;
     private final Condition batchIsFullCondition;
-    private volatile Batch currentBatch;
-    private final ReentrantLock batchLock;
+    private volatile IOWritesBatch currentBatch;
+    private final ReentrantLock lock;
     private volatile boolean isClosed;
 
 
-    public static DoubleBatch open(Path journalFile, int batchSize) throws IOException {
-        ExecutorService executor = Executors.newSingleThreadExecutor(
-            Thread.ofPlatform()
-                .name("write-channel-executor")
-                .factory()
-        );
+    public static BatchingWriteableChannel open(Path journalFile, int batchSize) throws IOException {
+        ExecutorService executor = Executors.newSingleThreadExecutor(WRITE_CHANNEL_THREAD_FACTORY);
         FileChannel writerChannel = FileChannel.open(journalFile, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+        AtomicLong virtualFileChannelPosition = new AtomicLong(writerChannel.size());
+        ReentrantLock reentrantLock = new ReentrantLock(true);
+        IOWritesBatch batchA = new IOWritesBatch(ByteBuffer.allocateDirect(batchSize), virtualFileChannelPosition, reentrantLock.newCondition());
+        IOWritesBatch batchB = new IOWritesBatch(ByteBuffer.allocateDirect(batchSize), virtualFileChannelPosition, reentrantLock.newCondition());
 
-        return new DoubleBatch(executor, writerChannel, batchSize);
+        return new BatchingWriteableChannel(executor, writerChannel, batchA, batchB, reentrantLock);
     }
 
-    DoubleBatch(ExecutorService executor, FileChannel writeChannel, int batchSize) throws IOException {
+    private BatchingWriteableChannel(ExecutorService executor, FileChannel writeChannel, IOWritesBatch batchA, IOWritesBatch batchB, ReentrantLock lock) {
         this.executorService = executor;
         this.writeChannel = writeChannel;
-        AtomicLong virtualPosition = new AtomicLong(writeChannel.size());
-        batchLock = new ReentrantLock(true);
-        Condition batchAHasFlushedCondition = batchLock.newCondition();
-        Condition batchBHasFlushedCondition = batchLock.newCondition();
-        batchIsFullCondition = batchLock.newCondition();
-        batchA = new Batch(batchSize, virtualPosition, batchAHasFlushedCondition);
-        batchB = new Batch(batchSize, virtualPosition, batchBHasFlushedCondition);
+        this.lock = lock;
+        this.batchIsFullCondition = lock.newCondition();
+        this.batchA = batchA;
+        this.batchB = batchB;
         currentBatch = batchA;
         executorService.submit(this::runBatchConsumer);
     }
@@ -54,12 +55,12 @@ public class DoubleBatch {
             throw new IllegalStateException("DoubleBatch is closed");
         }
         while (true) {
-            batchLock.lock();
+            lock.lock();
             try {
                 if (isClosed) {
                     throw new IllegalStateException("DoubleBatch is closed");
                 }
-                Batch activeBatch = currentBatch;
+                IOWritesBatch activeBatch = currentBatch;
                 if (!activeBatch.hasRemaining(buffer.remaining())) {
                     batchIsFullCondition.signal();
                     continue;
@@ -69,8 +70,8 @@ public class DoubleBatch {
                     batchIsFullCondition.signal();                                  // signal(consumer) - producer still has lock
                 }
                 if (waitForFlush) {                                                 // async write
-                    while (!activeBatch.hasBatchFlushed()) {
-                        activeBatch.getHasFlushedCondition().await();
+                    while (!activeBatch.isBatchFlushed()) {
+                        activeBatch.await();
                     }
                 }
                 return offset;
@@ -78,16 +79,16 @@ public class DoubleBatch {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             } finally {
-                batchLock.unlock();
+                lock.unlock();
             }
         }
     }
 
     private void runBatchConsumer() {
         while (!isClosed) {
-            batchLock.lock();
+            lock.lock();
             try {
-                Batch batchToFlush = currentBatch;
+                IOWritesBatch batchToFlush = currentBatch;
                 while (batchToFlush.isEmpty()) {
                     batchIsFullCondition.await();
                 }
@@ -96,21 +97,21 @@ public class DoubleBatch {
             } catch (InterruptedException | IOException e) {
                 throw new RuntimeException(e);
             } finally {
-                batchLock.unlock();
+                lock.unlock();
             }
         }
         // flush another batch if there is something to write
-        batchLock.lock();
+        lock.lock();
         try {
             flushBatchAndSignalAllWaitingWriters(currentBatch);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
-            batchLock.unlock();
+            lock.unlock();
         }
     }
 
-    private void flushBatchAndSignalAllWaitingWriters(Batch batchToFlush) throws IOException {
+    private void flushBatchAndSignalAllWaitingWriters(IOWritesBatch batchToFlush) throws IOException {
         ByteBuffer writableBuffer = batchToFlush.writableBuffer();
         int expectedBytesToWrite = writableBuffer.limit();
         int bytesWritten = writeChannel.write(writableBuffer);
@@ -119,23 +120,23 @@ public class DoubleBatch {
         }
         batchToFlush.clear();
         batchToFlush.markBatchAsFlushed();
-        batchToFlush.getHasFlushedCondition().signalAll();
+        batchToFlush.signalAll();
     }
 
     private void swapBatch() {
-        Batch nextBatch = currentBatch == batchA ? batchB : batchA;
+        IOWritesBatch nextBatch = currentBatch == batchA ? batchB : batchA;
         nextBatch.resetFlushMark();
         currentBatch = nextBatch;
     }
 
     public void close() {
         this.isClosed = true;
-        batchLock.lock();
+        lock.lock();
         try {
             // force flushing
             batchIsFullCondition.signal();
         } finally {
-            batchLock.unlock();
+            lock.unlock();
         }
         executorService.shutdown();
         try {

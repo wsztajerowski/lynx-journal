@@ -34,10 +34,9 @@ public class JournalByteBuffer {
         if (variableSize == 0) {
             throw new JournalRuntimeIOException("Buffer contains no data to write");
         }
-        var checksum = computeChecksum(contentBuffer);
+        int checksum = computeChecksum(contentBuffer);
         prepareRecordHeaderBufferToWrite(variableSize, checksum);
         return this.byteBuffer
-//            .duplicate()
             .limit(headerBuffer.capacity() + this.contentBuffer.limit())
             .rewind();
     }

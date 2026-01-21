@@ -208,7 +208,7 @@
         </pluginManagement>
     </build>
     <modules>
-<!--        <module>jmh-benchmarks</module>-->
         <module>journal</module>
+        <module>jmh-benchmarks</module>
     </modules>
 </project>

@@ -3,6 +3,7 @@ package pl.wsztajerowski.journal;
 import com.google.common.jimfs.Configuration;
 import com.google.common.jimfs.Jimfs;
 import org.junit.jupiter.api.Test;
+import pl.wsztajerowski.journal.records.JournalByteBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -21,8 +22,8 @@ public class InMemoryJournalTest {
     @Test
     void write_and_read_from_in_memory_journal() throws IOException {
         // given
-        var content = "Hello World";
-        var buffer = FilesTestUtils.wrapInJournalByteBufferWithSize(content, BATCH_SIZE);
+        String content = "Hello World";
+        JournalByteBuffer buffer = FilesTestUtils.wrapInJournalByteBufferWithSize(content, BATCH_SIZE);
         ByteBuffer readContentBuffer;
 
         // when
@@ -30,13 +31,13 @@ public class InMemoryJournalTest {
             Path journalPath = fs.getPath("/test.journal");
             Files.writeString(journalPath, "test");
             try (Journal sut = Journal.open(journalPath, true, BATCH_SIZE)) {
-                var location = sut.write(buffer);
+                Location location = sut.write(buffer);
                 // and
                 readContentBuffer = sut.read(createJournalByteBuffer(64), location);
             }
         }
         // then
-        var readContent = readAsUtf8(readContentBuffer);
+        String readContent = readAsUtf8(readContentBuffer);
         assertThat(readContent)
             .startsWith(content);
     }
