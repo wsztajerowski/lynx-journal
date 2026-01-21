@@ -1,15 +1,19 @@
 package pl.wsztajerowski.journal;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.pastalab.fray.junit.junit5.FrayTestExtension;
 import org.pastalab.fray.junit.junit5.annotations.ConcurrencyTest;
 import pl.wsztajerowski.journal.records.RecordHeader;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.readAllBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pl.wsztajerowski.journal.BytesTestUtils.toUpperCaseHexString;
@@ -26,8 +30,8 @@ class ConcurrentBatchingFileChannelTest {
     private Path dataFilePath;
 
     @BeforeEach
-    void setUp() throws IOException {
-        dataFilePath = createTempFile("journal", ".dat");
+    void setUp(@TempDir Path tempDir) throws IOException {
+        dataFilePath = Files.createFile(tempDir.resolve("journal.dat"));
         sut = Journal.open(dataFilePath, false, BATCH_SIZE);
     }
 

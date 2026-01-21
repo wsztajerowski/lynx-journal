@@ -2,6 +2,7 @@ package pl.wsztajerowski.journal.records;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import pl.wsztajerowski.journal.JournalRuntimeIOException;
@@ -9,10 +10,10 @@ import pl.wsztajerowski.journal.Location;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
-import static java.nio.file.Files.createTempFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchException;
 import static pl.wsztajerowski.journal.FilesTestUtils.readAsUtf8;
@@ -31,8 +32,8 @@ class RecordReadChannelTest {
     }
 
     @BeforeEach
-    void setUp() throws IOException {
-        dataFilePath = createTempFile("journal", ".dat");
+    void setUp(@TempDir Path tempDir) throws IOException {
+        dataFilePath = Files.createFile(tempDir.resolve("journal.dat"));
         sut = RecordReadChannel.open(dataFilePath);
     }
 

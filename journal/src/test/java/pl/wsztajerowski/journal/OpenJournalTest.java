@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,9 +30,9 @@ class OpenJournalTest {
     }
 
     @Test
-    void opened_journal_has_only_valid_header() throws IOException {
+    void opened_journal_has_only_valid_header(@TempDir Path tempDir) throws IOException {
         // given
-        Path journalPath = createTempFile("journal", ".dat");
+        Path journalPath = Files.createFile(tempDir.resolve("journal.dat"));
 
         // when
         sut = Journal.open(journalPath, false);
