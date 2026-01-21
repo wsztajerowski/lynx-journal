@@ -8,7 +8,7 @@ import static pl.wsztajerowski.journal.records.ChecksumCalculator.computeChecksu
 
 public record Record(RecordHeader recordHeader, Location location, ByteBuffer buffer) {
     public static Record createAndValidateRecord(RecordHeader recordHeader, Location location, ByteBuffer buffer) {
-        var calculatedChecksum = computeChecksum(buffer);
+        int calculatedChecksum = computeChecksum(buffer);
         if (calculatedChecksum != recordHeader.checksum()) {
             throw new InvalidRecordChecksumException(calculatedChecksum, recordHeader.checksum());
         }

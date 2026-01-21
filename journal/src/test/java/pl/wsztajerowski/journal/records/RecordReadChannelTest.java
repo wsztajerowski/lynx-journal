@@ -47,7 +47,7 @@ class RecordReadChannelTest {
         long offset = validJournal(dataFilePath)
             .recordTestDataProvider()
             .saveVariableWithInvalidRecordHeader("Test value");
-        var location = new Location(offset);
+        Location location = new Location(offset);
 
         // when
         Exception exception = catchException(() -> sut.read(createJournalByteBuffer(64), location));
@@ -80,11 +80,11 @@ class RecordReadChannelTest {
         long offset = validJournal(dataFilePath)
             .recordTestDataProvider()
             .saveVariable(content);
-        var location = new Location(offset);
+        Location location = new Location(offset);
         JournalByteBuffer outputBuffer = createJournalByteBuffer(1_000_000);
 
         // when
-        var record = sut.read(outputBuffer, location);
+        Record record = sut.read(outputBuffer, location);
 
         // then
         assertThat(readAsUtf8(record.buffer()))
@@ -103,7 +103,7 @@ class RecordReadChannelTest {
     @MethodSource("invalidBuffersSource")
     void read_record_providing_buffer_without_enough_space_throws_exception(JournalByteBuffer userBuffer) throws IOException {
         // given
-        var variableOffset = validJournal(dataFilePath)
+        long variableOffset = validJournal(dataFilePath)
             .recordTestDataProvider()
             .saveVariable("INIT Value");
 
@@ -131,10 +131,10 @@ class RecordReadChannelTest {
         long offset = validJournal(dataFilePath)
             .recordTestDataProvider()
             .saveVariable("Test value");
-        var location = new Location(offset);
+        Location location = new Location(offset);
 
         // when
-        var record = sut.read(outputBuffer, location);
+        Record record = sut.read(outputBuffer, location);
 
         // then
         assertThat(record.buffer().remaining())
